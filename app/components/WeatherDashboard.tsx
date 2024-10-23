@@ -134,9 +134,10 @@ export default function WeatherDashboard() {
       setShowRecommendations(true)
       showNotification(`Recommendations fetched successfully (${data.source})`, 'success')
     } catch (err) {
-      showNotification('Error fetching recommendations. Please try again.', 'error')
+      console.error(err); // Log the error for debugging
+      showNotification('Error fetching recommendations. Please try again.', 'error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 

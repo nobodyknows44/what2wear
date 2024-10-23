@@ -3,7 +3,7 @@ import type { WeatherData, ClothingRecommendation } from '@/types'
 export const getClothingRecommendations = (weatherData: WeatherData): ClothingRecommendation => {
   const { temperature, conditions, windSpeed } = weatherData;
   
-  let recommendation: ClothingRecommendation = {
+  const recommendation: ClothingRecommendation = {
     topWear: [],
     bottomWear: [],
     accessories: [],
