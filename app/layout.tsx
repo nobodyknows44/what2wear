@@ -19,8 +19,8 @@ export default function RootLayout({
       <body className={inter.className}>
         <NotificationProvider>
           {children}
-          <footer className="fixed bottom-0 left-0 right-0 bg-transparent text-white p-4 text-center">
-            <p className="text-sm">2024 What2Wear.Today. Linkedin @alexkopytin</p>
+          <footer className="fixed bottom-0 left-0 right-0 bg-transparent text-gray-600 p-4 text-center">
+            <p className="text-sm">2024 What2Wear.Today. LinkedIn @alexkopytin</p>
           </footer>
         </NotificationProvider>
       </body>

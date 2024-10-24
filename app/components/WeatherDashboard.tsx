@@ -233,65 +233,71 @@ export default function WeatherDashboard() {
         ) : (
           <CardContent>
             {weather && recommendations && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Recommendations for {location.city}, {location.country}</h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  Source: {recommendationSource === 'AI' ? 'AI-powered' : 'Standard algorithm'}
-                </p>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-center mb-4">
+                  Fashion Forecast for {location.city}, {location.country} 🌈👗
+                </h2>
+                <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
-                    <Sun className="h-5 w-5 text-yellow-500" />
-                    <span>{weather.temperature}°C</span>
+                    <Sun className="h-6 w-6 text-yellow-500" />
+                    <span className="text-lg font-semibold">{weather.temperature}°C</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Cloud className="h-5 w-5 text-gray-500" />
-                    <span>{weather.conditions}</span>
+                    <Cloud className="h-6 w-6 text-gray-500" />
+                    <span className="text-lg">{weather.conditions}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Wind className="h-5 w-5 text-blue-500" />
+                    <Wind className="h-6 w-6 text-blue-500" />
                     <span>{weather.windSpeed} m/s</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Droplets className="h-5 w-5 text-blue-300" />
+                    <Droplets className="h-6 w-6 text-blue-300" />
                     <span>{weather.humidity}%</span>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Suggested Outfit</h3>
-                  <p className="text-gray-700 italic">{recommendations.description}</p>
+                <div className="space-y-4 bg-gradient-to-r from-pink-100 to-orange-100 p-6 rounded-lg">
+                  <h3 className="text-xl font-bold text-center mb-4">🎨 Your Stylish Canvas 🎨</h3>
+                  <p className="text-gray-700 italic text-center">{recommendations.description}</p>
                   
                   {recommendations.topWear.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-800">Top:</h4>
-                      <p className="text-gray-700">{recommendations.topWear.join(', ')}</p>
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
+                      <p className="text-gray-700">{recommendations.topWear.join(' + ')}</p>
                     </div>
                   )}
                   
                   {recommendations.bottomWear.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-800">Bottom:</h4>
-                      <p className="text-gray-700">{recommendations.bottomWear.join(', ')}</p>
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
+                      <p className="text-gray-700">{recommendations.bottomWear.join(' + ')}</p>
                     </div>
                   )}
                   
                   {recommendations.accessories.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-800">Accessories:</h4>
-                      <p className="text-gray-700">{recommendations.accessories.join(', ')}</p>
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
+                      <p className="text-gray-700">{recommendations.accessories.join(' + ')}</p>
                     </div>
                   )}
+                </div>
+
+                <div className="text-center">
+
+                  <p className="text-sm font-semibold text-indigo-600">
+                    Remember: You're gorgeous no matter what you wear! 💖
+                  </p>
                 </div>
               </div>
             )}
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 w-full"
+              className="mt-6 w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
               onClick={() => setShowRecommendations(false)}
->
-  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
-</Button>
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
+            </Button>
           </CardContent>
         )}
       </Card>
