@@ -145,8 +145,8 @@ export default function WeatherDashboard() {
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">What2Wear</CardTitle>
-          <CardDescription className="text-center">Real-time weather, real-time style</CardDescription>
+          <CardTitle className="text-3xl font-bold text-center">What2Wear</CardTitle>
+          <CardDescription className="text-xl text-center">Real-time weather, real-time style</CardDescription>
         </CardHeader>
         {!showRecommendations ? (
           <CardContent>
@@ -232,14 +232,6 @@ export default function WeatherDashboard() {
           </CardContent>
         ) : (
           <CardContent>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mb-4"
-              onClick={() => setShowRecommendations(false)}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
-            </Button>
             {weather && recommendations && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Recommendations for {location.city}, {location.country}</h2>
@@ -292,6 +284,13 @@ export default function WeatherDashboard() {
                 </div>
               </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setShowRecommendations(false)}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
+            </Button>
           </CardContent>
         )}
       </Card>
