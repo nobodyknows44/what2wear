@@ -287,10 +287,11 @@ export default function WeatherDashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
-              onClick={() => setShowRecommendations(false)}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
-            </Button>
+              className="mt-4 w-full"
+              onClick={() => setShowRecommendations(false)}
+>
+  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Selection
+</Button>
           </CardContent>
         )}
       </Card>
