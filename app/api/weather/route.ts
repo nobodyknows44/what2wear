@@ -1,33 +1,38 @@
 import { NextResponse } from 'next/server'
-import type { WeatherData, ClothingRecommendation } from '@/types'
-import { getClothingRecommendations } from '@/app/lib/recommendations'
+import type { WeatherData, LocationData } from '@/types'
 
-const WEATHER_API_KEY = process.env.WEATHER_API_KEY
-const WEATHER_API_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather'
-const AI_API_KEY = process.env.AI_API_KEY
-const AI_API_URL = 'https://api.example.com/ai-clothing-recommendations'
+const API_KEY = process.env.OPENWEATHERMAP_API_KEY
 
-async function getAIRecommendations(weatherData: WeatherData): Promise<ClothingRecommendation | null> {
+async function getWeatherData(city: string, country: string): Promise<WeatherData> {
+  const response = await fetch(
+    `https://api.openweathermap.org/data/2.5/weather?q=${city},${country}&appid=${API_KEY}&units=metric`
+  )
+  if (!response.ok) {
+    throw new Error('Failed to fetch weather data')
+  }
+  const data = await response.json()
+  return {
+    temperature: Math.round(data.main.temp),
+    feelsLike: Math.round(data.main.feels_like),
+    conditions: data.weather[0].description,
+    windSpeed: data.wind.speed,
+    humidity: data.main.humidity,
+    upcomingHours: [] // We'll need to use a different API endpoint for hourly forecast
+  }
+}
+
+async function getAIRecommendations(weather: WeatherData, location: LocationData) {
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-
-    const response = await fetch(AI_API_URL, {
+    const response = await fetch('http://localhost:3000/api/ai-recommendations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AI_API_KEY}`
       },
-      body: JSON.stringify(weatherData),
-      signal: controller.signal
+      body: JSON.stringify({ weather, location }),
     })
-
-    clearTimeout(timeoutId)
-
     if (!response.ok) {
       throw new Error('Failed to get AI recommendations')
     }
-
     return await response.json()
   } catch (error) {
     console.error('AI API Error:', error)
@@ -41,44 +46,19 @@ export async function GET(request: Request) {
   const country = searchParams.get('country')
 
   if (!city || !country) {
-    return NextResponse.json({ error: 'Missing city or country' }, { status: 400 })
+    return NextResponse.json({ error: 'City and country are required' }, { status: 400 })
   }
 
   try {
-    const weatherResponse = await fetch(
-      `${WEATHER_API_BASE_URL}?q=${city},${country}&appid=${WEATHER_API_KEY}&units=metric`
-    )
-    
-    if (!weatherResponse.ok) {
-      throw new Error('Weather data fetch failed')
-    }
+    const weatherData = await getWeatherData(city, country)
+    const recommendations = await getAIRecommendations(weatherData, { city, country })
 
-    const weatherData = await weatherResponse.json()
-    
-    const processedWeatherData: WeatherData = {
-      temperature: weatherData.main.temp,
-      conditions: weatherData.weather[0].main,
-      humidity: weatherData.main.humidity,
-      windSpeed: weatherData.wind.speed
-    }
-
-    let recommendations: ClothingRecommendation
-    const aiRecommendations = await getAIRecommendations(processedWeatherData)
-
-    if (aiRecommendations) {
-      recommendations = aiRecommendations
-    } else {
-      // Fallback to our original recommendation function
-      recommendations = getClothingRecommendations(processedWeatherData)
-    }
-
-    return NextResponse.json({ 
-      weather: processedWeatherData, 
-      recommendations,
-      source: aiRecommendations ? 'AI' : 'Fallback'
+    return NextResponse.json({
+      weather: weatherData,
+      recommendations: recommendations || null,
     })
   } catch (error) {
     console.error('Error:', error)
-    return NextResponse.json({ error: 'Error fetching data' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 })
   }
 }

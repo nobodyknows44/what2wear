@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Cloud, Droplets, Sun, Wind, ArrowLeft, Search } from 'lucide-react'
+import { Cloud, Droplets, Sun, Wind, ArrowLeft, Search, Thermometer } from 'lucide-react'
 import type { LocationData, WeatherData, ClothingRecommendation } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useNotification } from './NotificationContext'
+import { getAIRecommendations } from '@/app/lib/aiRecommendations'
 
 const locationData = {
   'United States': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'],
@@ -76,7 +77,6 @@ export default function WeatherDashboard() {
   })
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [recommendations, setRecommendations] = useState<ClothingRecommendation | null>(null)
-  const [recommendationSource, setRecommendationSource] = useState<'AI' | 'Fallback' | null>(null)
   const [loading, setLoading] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [countrySearch, setCountrySearch] = useState('')
@@ -129,23 +129,34 @@ export default function WeatherDashboard() {
 
       const data = await response.json()
       setWeather(data.weather)
-      setRecommendations(data.recommendations)
-      setRecommendationSource(data.source)
+
+      // Get AI-generated recommendations
+      const aiRecommendations = await getAIRecommendations(data.weather, location)
+      setRecommendations(aiRecommendations)
+
       setShowRecommendations(true)
-      showNotification(`Recommendations fetched successfully (${data.source})`, 'success')
+      showNotification('Recommendations fetched successfully', 'success')
     } catch (err) {
-      console.error(err); // Log the error for debugging
-      showNotification('Error fetching recommendations. Please try again.', 'error');
+      console.error(err)
+      showNotification('Error fetching recommendations. Please try again.', 'error')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
+  }
+
+  const getWindDescription = (speed: number) => {
+    if (speed < 1) return 'Calm'
+    if (speed < 5) return 'Light breeze'
+    if (speed < 11) return 'Moderate breeze'
+    if (speed < 19) return 'Strong breeze'
+    return 'High wind'
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">What2Wear</CardTitle>
+          <CardTitle className="text-3xl font-bold text-center">What2Wear.Today</CardTitle>
           <CardDescription className="text-xl text-center">Real-time weather, real-time style</CardDescription>
         </CardHeader>
         {!showRecommendations ? (
@@ -179,6 +190,7 @@ export default function WeatherDashboard() {
                           setLocation(prev => ({ ...prev, country }))
                           setCountrySearch(country)
                           setShowCountryDropdown(false)
+                          setCitySearch('')
                         }}
                         className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                       >
@@ -204,9 +216,10 @@ export default function WeatherDashboard() {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                     className="pl-8"
+                    disabled={!location.country}
                   />
                 </div>
-                {showCityDropdown && (
+                {showCityDropdown && location.country && (
                   <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
                     {filteredCities.map((city) => (
                       <button
@@ -235,7 +248,7 @@ export default function WeatherDashboard() {
             {weather && recommendations && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-center mb-4">
-                  Fashion Forecast for {location.city}, {location.country} 🌈👗
+                  AI Fashion Forecast for {location.city}, {location.country} 🌈👗
                 </h2>
                 <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg">
                   <div className="flex items-center space-x-2">
@@ -243,12 +256,16 @@ export default function WeatherDashboard() {
                     <span className="text-lg font-semibold">{weather.temperature}°C</span>
                   </div>
                   <div className="flex items-center space-x-2">
+                    <Thermometer className="h-6 w-6 text-red-500" />
+                    <span className="text-lg">Feels like {weather.feelsLike}°C</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <Cloud className="h-6 w-6 text-gray-500" />
                     <span className="text-lg">{weather.conditions}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Wind className="h-6 w-6 text-blue-500" />
-                    <span>{weather.windSpeed} m/s</span>
+                    <span>{getWindDescription(weather.windSpeed)}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Droplets className="h-6 w-6 text-blue-300" />
@@ -257,33 +274,44 @@ export default function WeatherDashboard() {
                 </div>
 
                 <div className="space-y-4 bg-gradient-to-r from-pink-100 to-orange-100 p-6 rounded-lg">
-                  <h3 className="text-xl font-bold text-center mb-4">🎨 Your Stylish Canvas 🎨</h3>
+                  <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
                   <p className="text-gray-700 italic text-center">{recommendations.description}</p>
                   
                   {recommendations.topWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                      <p className="text-gray-700">{recommendations.topWear.join(' + ')}</p>
+                      {recommendations.topWear.map((item, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
                     </div>
                   )}
                   
                   {recommendations.bottomWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                      <p className="text-gray-700">{recommendations.bottomWear.join(' + ')}</p>
+                      {recommendations.bottomWear.map((item, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
                     </div>
                   )}
                   
                   {recommendations.accessories.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                      <p className="text-gray-700">{recommendations.accessories.join(' + ')}</p>
+                      {recommendations.accessories.map((item, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
                     </div>
                   )}
                 </div>
 
                 <div className="text-center">
-
                   <p className="text-sm font-semibold text-indigo-600">
                     Remember: You're gorgeous no matter what you wear! 💖
                   </p>
