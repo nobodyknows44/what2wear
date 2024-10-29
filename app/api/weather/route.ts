@@ -13,11 +13,9 @@ async function getWeatherData(city: string, country: string): Promise<WeatherDat
   const data = await response.json()
   return {
     temperature: Math.round(data.main.temp),
-    feelsLike: Math.round(data.main.feels_like),
     conditions: data.weather[0].description,
     windSpeed: data.wind.speed,
     humidity: data.main.humidity,
-    upcomingHours: [] // We'll need to use a different API endpoint for hourly forecast
   }
 }
 
