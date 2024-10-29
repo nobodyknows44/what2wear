@@ -1,47 +1,31 @@
-import { NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { WeatherData, ClothingRecommendation, LocationData } from '@/types';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
 
 export async function POST(request: Request) {
   try {
-    const { weather, location } = await request.json()
+    const { weather, location }: { weather: WeatherData; location: LocationData } = await request.json();
 
-    const prompt = `Given the following weather conditions in ${location.city}, ${location.country}:
-    - Temperature: ${weather.temperature}°C (feels like ${weather.feelsLike}°C)
-    - Conditions: ${weather.conditions}
-    - Wind: ${weather.windSpeed} m/s
-    - Humidity: ${weather.humidity}%
+    const prompt = `Given the weather conditions: Temperature ${weather.temperature}°C, feels like ${weather.feelsLike}°C, ${weather.conditions}, wind speed ${weather.windSpeed} m/s, and humidity ${weather.humidity}% in ${location.city}, ${location.country}, suggest an outfit with specific items and colors for top wear, bottom wear, and accessories. Format the response as a JSON object with keys "description", "topWear", "bottomWear", and "accessories", where each wear category is an array of objects with "item" and "color" properties.`;
 
-    Please provide clothing recommendations in the following format:
-    {
-      "topWear": [{ "item": "...", "color": "..." }, ...],
-      "bottomWear": [{ "item": "...", "color": "..." }, ...],
-      "accessories": [{ "item": "...", "color": "..." }, ...],
-      "description": "A brief description of the outfit and why it's suitable for the weather"
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    
+    let aiRecommendations: ClothingRecommendation;
+    try {
+      aiRecommendations = JSON.parse(text);
+    } catch (error) {
+      console.error('Error parsing AI response:', error);
+      throw new Error('Invalid AI response format');
     }
 
-    Ensure the recommendations are stylish, weather-appropriate, and include color suggestions. Respond ONLY with the JSON object, no additional text.`
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
-
-    // Remove any non-JSON content from the beginning and end of the response
-    const jsonStart = text.indexOf('{')
-    const jsonEnd = text.lastIndexOf('}')
-    if (jsonStart === -1 || jsonEnd === -1) {
-      throw new Error('Invalid JSON response from AI model')
-    }
-    const jsonText = text.slice(jsonStart, jsonEnd + 1)
-
-    // Parse the JSON response
-    const recommendations = JSON.parse(jsonText)
-
-    return NextResponse.json(recommendations)
+    return NextResponse.json(aiRecommendations);
   } catch (error) {
-    console.error('Error generating AI recommendations:', error)
-    return NextResponse.json({ error: 'Failed to generate AI recommendations' }, { status: 500 })
+    console.error('Error in AI recommendations:', error);
+    return NextResponse.json({ error: 'Failed to get AI recommendations' }, { status: 500 });
   }
 }
