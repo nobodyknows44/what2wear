@@ -282,32 +282,44 @@ export default function WeatherDashboard() {
                   <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
                   <p className="text-gray-700 italic text-center">{recommendations.description}</p>
                   
-                  {/* Top Wear */}
-                  {recommendations.topWear.map((item, index) => (
-                    <p key={index} className="text-gray-700">
-                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
-                    </p>
-                  ))}
-                  
-                  {/* Bottom Wear */}
-                  {recommendations.bottomWear.map((item, index) => (
-                    <p key={index} className="text-gray-700">
-                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
-                    </p>
-                  ))}
-                  
-                  {/* Accessories */}
-                  {recommendations.accessories.map((item, index) => (
-                    <p key={index} className="text-gray-700">
-                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
-                    </p>
-                  ))}
-                </div>
+                  {recommendations.topWear.length > 0 && (
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
+                      {recommendations.topWear.map((item: ClothingItem, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
 
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-indigo-600">
-                    Remember: You're gorgeous no matter what you wear! 💖
-                  </p>
+                  {recommendations.bottomWear.length > 0 && (
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
+                      {recommendations.bottomWear.map((item: ClothingItem, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {recommendations.accessories.length > 0 && (
+                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                      <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
+                      {recommendations.accessories.map((item: ClothingItem, index) => (
+                        <p key={index} className="text-gray-700">
+                          {item.item} <span className="font-medium">in {item.color}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-indigo-600">
+                      Remember: You're gorgeous no matter what you wear! 💖
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
