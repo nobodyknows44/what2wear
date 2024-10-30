@@ -282,38 +282,26 @@ export default function WeatherDashboard() {
                   <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
                   <p className="text-gray-700 italic text-center">{recommendations.description}</p>
                   
-                  {recommendations.topWear.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                      {(recommendations.topWear as ClothingItem[]).map((item, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
+                  {/* Top Wear */}
+                  {recommendations.topWear.map((item, index) => (
+                    <p key={index} className="text-gray-700">
+                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
+                    </p>
+                  ))}
                   
-                  {recommendations.bottomWear.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                      {(recommendations.bottomWear as ClothingItem[]).map((item, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
+                  {/* Bottom Wear */}
+                  {recommendations.bottomWear.map((item, index) => (
+                    <p key={index} className="text-gray-700">
+                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
+                    </p>
+                  ))}
                   
-                  {recommendations.accessories.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                      {(recommendations.accessories as ClothingItem[]).map((item, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
+                  {/* Accessories */}
+                  {recommendations.accessories.map((item, index) => (
+                    <p key={index} className="text-gray-700">
+                      {(item as ClothingItem).item} <span className="font-medium">in {(item as ClothingItem).color}</span>
+                    </p>
+                  ))}
                 </div>
 
                 <div className="text-center">
