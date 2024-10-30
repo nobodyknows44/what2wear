@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Cloud, Droplets, Sun, Wind, ArrowLeft, Search, Thermometer } from 'lucide-react'
-import type { LocationData, WeatherData, ClothingRecommendation } from '@/types'
+import { Cloud, Droplets, Sun, Wind, ArrowLeft, Search, Thermometer, Umbrella } from 'lucide-react'
+import type { LocationData, WeatherData, ClothingRecommendation, ClothingItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -152,6 +152,14 @@ export default function WeatherDashboard() {
     return 'High wind'
   }
 
+  const getWeatherIcon = (conditions: string) => {
+    const lowerConditions = conditions.toLowerCase()
+    if (lowerConditions.includes('rain') || lowerConditions.includes('drizzle')) return <Umbrella className="h-6 w-6 text-blue-500" />
+    if (lowerConditions.includes('cloud')) return <Cloud className="h-6 w-6 text-gray-500" />
+    if (lowerConditions.includes('clear') || lowerConditions.includes('sun')) return <Sun className="h-6 w-6 text-yellow-500" />
+    return <Cloud className="h-6 w-6 text-gray-500" />
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-md mx-auto">
@@ -216,6 +224,7 @@ export default function WeatherDashboard() {
                     }}
                     onFocus={() => setShowCityDropdown(true)}
                     className="pl-8"
+                    
                     disabled={!location.country}
                   />
                 </div>
@@ -256,7 +265,7 @@ export default function WeatherDashboard() {
                     <span className="text-lg font-semibold">{weather.temperature}°C</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Cloud className="h-6 w-6 text-gray-500" />
+                    {getWeatherIcon(weather.conditions)}
                     <span className="text-lg">{weather.conditions}</span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -276,7 +285,7 @@ export default function WeatherDashboard() {
                   {recommendations.topWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                      {recommendations.topWear.map((item, index) => (
+                      {recommendations.topWear.map((item: ClothingItem, index: number) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
@@ -287,7 +296,7 @@ export default function WeatherDashboard() {
                   {recommendations.bottomWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                      {recommendations.bottomWear.map((item, index) => (
+                      {recommendations.bottomWear.map((item: ClothingItem, index: number) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
@@ -298,7 +307,7 @@ export default function WeatherDashboard() {
                   {recommendations.accessories.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                      {recommendations.accessories.map((item, index) => (
+                      {recommendations.accessories.map((item: ClothingItem, index: number) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
