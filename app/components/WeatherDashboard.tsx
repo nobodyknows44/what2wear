@@ -285,7 +285,7 @@ export default function WeatherDashboard() {
                   {recommendations.topWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                      {recommendations.topWear.map((item: ClothingItem, index: number) => (
+                      {(recommendations.topWear as ClothingItem[]).map((item, index) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
@@ -296,7 +296,7 @@ export default function WeatherDashboard() {
                   {recommendations.bottomWear.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                      {recommendations.bottomWear.map((item: ClothingItem, index: number) => (
+                      {(recommendations.bottomWear as ClothingItem[]).map((item, index) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
@@ -307,7 +307,7 @@ export default function WeatherDashboard() {
                   {recommendations.accessories.length > 0 && (
                     <div className="bg-white bg-opacity-50 p-3 rounded-md">
                       <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                      {recommendations.accessories.map((item: ClothingItem, index: number) => (
+                      {(recommendations.accessories as ClothingItem[]).map((item, index) => (
                         <p key={index} className="text-gray-700">
                           {item.item} <span className="font-medium">in {item.color}</span>
                         </p>
