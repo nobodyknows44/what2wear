@@ -132,7 +132,7 @@ export default function WeatherDashboard() {
 
       // Get AI-generated recommendations
       const aiRecommendations = await getAIRecommendations(data.weather, location)
-      setRecommendations(aiRecommendations)
+      setRecommendations(aiRecommendations as ClothingRecommendation)
 
       setShowRecommendations(true)
       showNotification('Recommendations fetched successfully', 'success')
