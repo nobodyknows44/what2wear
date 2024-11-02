@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useNotification } from './NotificationContext'
-import { getAIRecommendations } from '@/app/lib/aiRecommendations'
 
 const locationData = {
   'United States': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'],
@@ -70,7 +69,12 @@ const locationData = {
   'Ghana': ['Accra', 'Kumasi', 'Sekondi-Takoradi', 'Tamale', 'Sunyani']
 }
 
-export default function WeatherDashboard() {
+interface WeatherDashboardProps {
+  showRecommendations: boolean;
+  setShowRecommendations: (show: boolean) => void;
+}
+
+export default function WeatherDashboard({ showRecommendations, setShowRecommendations }: WeatherDashboardProps) {
   const [location, setLocation] = useState<LocationData>({
     city: '',
     country: ''
@@ -78,7 +82,6 @@ export default function WeatherDashboard() {
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [recommendations, setRecommendations] = useState<ClothingRecommendation | null>(null)
   const [loading, setLoading] = useState(false)
-  const [showRecommendations, setShowRecommendations] = useState(false)
   const [countrySearch, setCountrySearch] = useState('')
   const [citySearch, setCitySearch] = useState('')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
@@ -129,15 +132,11 @@ export default function WeatherDashboard() {
 
       const data = await response.json()
       setWeather(data.weather)
-
-      // Get AI-generated recommendations
-      const aiRecommendations = await getAIRecommendations(data.weather, location)
-      setRecommendations(aiRecommendations as ClothingRecommendation)
-
+      setRecommendations(data.recommendations)
       setShowRecommendations(true)
       showNotification('Recommendations fetched successfully', 'success')
     } catch (err) {
-      console.error(err)
+      console.error('Error in handleSubmit:', err)
       showNotification('Error fetching recommendations. Please try again.', 'error')
     } finally {
       setLoading(false)
@@ -161,179 +160,176 @@ export default function WeatherDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">What2Wear.Today</CardTitle>
-          <CardDescription className="text-xl text-center">Real-time weather, real-time style</CardDescription>
-        </CardHeader>
-        {!showRecommendations ? (
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2" ref={countryRef}>
-                <label htmlFor="country" className="text-sm font-medium text-gray-700">
-                  Country
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="country"
-                    placeholder="Search for a country"
-                    value={countrySearch}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      setCountrySearch(e.target.value)
-                      setShowCountryDropdown(true)
-                    }}
-                    onFocus={() => setShowCountryDropdown(true)}
-                    className="pl-8"
-                  />
-                </div>
-                {showCountryDropdown && (
-                  <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredCountries.map((country) => (
-                      <button
-                        key={country}
-                        type="button"
-                        onClick={() => {
-                          setLocation(prev => ({ ...prev, country }))
-                          setCountrySearch(country)
-                          setShowCountryDropdown(false)
-                          setCitySearch('')
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        {country}
-                      </button>
-                    ))}
-                  </div>
-                )}
+    <Card className="w-full max-w-md mx-auto">
+      {!showRecommendations ? (
+        <CardContent className="my-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2" ref={countryRef}>
+              <label htmlFor="country" className="text-sm font-medium text-gray-700">
+                Country
+              </label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="country"
+                  placeholder="Search for a country"
+                  value={countrySearch}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setCountrySearch(e.target.value)
+                    setShowCountryDropdown(true)
+                  }}
+                  onFocus={() => setShowCountryDropdown(true)}
+                  className="pl-8"
+                />
               </div>
-              <div className="space-y-2" ref={cityRef}>
-                <label htmlFor="city" className="text-sm font-medium text-gray-700">
-                  City
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="city"
-                    placeholder="Search for a city"
-                    value={citySearch}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      setCitySearch(e.target.value)
-                      setShowCityDropdown(true)
-                    }}
-                    onFocus={() => setShowCityDropdown(true)}
-                    className="pl-8"
-                    
-                    disabled={!location.country}
-                  />
+              {showCountryDropdown && (
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                  {filteredCountries.map((country) => (
+                    <button
+                      key={country}
+                      type="button"
+                      onClick={() => {
+                        setLocation(prev => ({ ...prev, country }))
+                        setCountrySearch(country)
+                        setShowCountryDropdown(false)
+                        setCitySearch('')
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      {country}
+                    </button>
+                  ))}
                 </div>
-                {showCityDropdown && location.country && (
-                  <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredCities.map((city) => (
-                      <button
-                        key={city}
-                        type="button"
-                        onClick={() => {
-                          setLocation(prev => ({ ...prev, city }))
-                          setCitySearch(city)
-                          setShowCityDropdown(false)
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        {city}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              )}
+            </div>
+            <div className="space-y-2" ref={cityRef}>
+              <label htmlFor="city" className="text-sm font-medium text-gray-700">
+                City
+              </label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="city"
+                  placeholder="Search for a city"
+                  value={citySearch}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setCitySearch(e.target.value)
+                    setShowCityDropdown(true)
+                  }}
+                  onFocus={() => setShowCityDropdown(true)}
+                  className="pl-8"
+                  disabled={!location.country}
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={loading || !location.city || !location.country}>
-                {loading ? 'Loading...' : 'Get Recommendations'}
-              </Button>
-            </form>
-          </CardContent>
-        ) : (
-          <CardContent>
-            {weather && recommendations && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-center mb-4">
-                  AI Fashion Forecast for {location.city}, {location.country} 🌈👗
-                </h2>
-                <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <Sun className="h-6 w-6 text-yellow-500" />
-                    <span className="text-lg font-semibold">{weather.temperature}°C</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getWeatherIcon(weather.conditions)}
-                    <span className="text-lg">{weather.conditions}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Wind className="h-6 w-6 text-blue-500" />
-                    <span>{getWindDescription(weather.windSpeed)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Droplets className="h-6 w-6 text-blue-300" />
-                    <span>{weather.humidity}%</span>
-                  </div>
+              {showCityDropdown && location.country && (
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                  {filteredCities.map((city) => (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => {
+                        setLocation(prev => ({ ...prev, city }))
+                        setCitySearch(city)
+                        setShowCityDropdown(false)
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      {city}
+                    </button>
+                  ))}
                 </div>
-
-                <div className="space-y-4 bg-gradient-to-r from-pink-100 to-orange-100 p-6 rounded-lg">
-                  <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
-                  <p className="text-gray-700 italic text-center">{recommendations.description}</p>
-                  
-                  {recommendations.topWear.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                      {recommendations.topWear.map((item: ClothingItem, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  {recommendations.bottomWear.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                      {recommendations.bottomWear.map((item: ClothingItem, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  {recommendations.accessories.length > 0 && (
-                    <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                      <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                      {recommendations.accessories.map((item: ClothingItem, index) => (
-                        <p key={index} className="text-gray-700">
-                          {item.item} <span className="font-medium">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-indigo-600">
-                      Remember: You're gorgeous no matter what you wear! 💖
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-6 w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
-              onClick={() => setShowRecommendations(false)}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
+              )}
+            </div>
+            <Button type="submit" className="w-full" disabled={loading || !location.city || !location.country}>
+              {loading ? 'Loading...' : 'Get Recommendations'}
             </Button>
-          </CardContent>
-        )}
-      </Card>
-    </div>
+          </form>
+        </CardContent>
+      ) : (
+        <CardContent className="pt-5">
+          {weather && recommendations && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-center mb-4">
+                AI Fashion Forecast for {location.city}, {location.country} 🌈👗
+              </h2>
+              <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Sun className="h-6 w-6 text-yellow-500" />
+                  <span className="text-lg font-semibold">{weather.temperature}°C</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Thermometer className="h-6 w-6 text-red-500" />
+                  <span className="text-lg">Feels like {weather.feelsLike}°C</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {getWeatherIcon(weather.conditions)}
+                  <span className="text-lg">{weather.conditions}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Wind className="h-6 w-6 text-blue-500" />
+                  <span>{getWindDescription(weather.windSpeed)}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Droplets className="h-6 w-6 text-blue-300" />
+                  <span>{weather.humidity}%</span>
+                </div>
+              </div>
+
+              <div className="space-y-4 bg-gradient-to-r from-pink-100 to-orange-100 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
+                <p className="text-gray-700 italic text-center">{recommendations.description}</p>
+                
+                {recommendations.topWear && recommendations.topWear.length > 0 && (
+                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                    <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
+                    {recommendations.topWear.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-gray-700">
+                        {item.item} <span className="font-medium">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                
+                {recommendations.bottomWear && recommendations.bottomWear.length > 0 && (
+                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                    <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
+                    {recommendations.bottomWear.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-gray-700">
+                        {item.item} <span className="font-medium">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                
+                {recommendations.accessories && recommendations.accessories.length > 0 && (
+                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
+                    <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
+                    {recommendations.accessories.map((item: ClothingItem, index:  number) => (
+                      <p key={index} className="text-gray-700">
+                        {item.item} <span className="font-medium">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center">
+                <p className="text-sm font-semibold text-indigo-600">
+                  Remember: You're gorgeous no matter what you wear! 💖
+                </p>
+              </div>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-6 w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
+            onClick={() => setShowRecommendations(false)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
+          </Button>
+        </CardContent>
+      )}
+    </Card>
   )
 }

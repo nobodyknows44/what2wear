@@ -2,7 +2,9 @@ import type { WeatherData, ClothingRecommendation, LocationData } from '@/types'
 
 export async function getAIRecommendations(weather: WeatherData, location: LocationData): Promise<ClothingRecommendation> {
   try {
-    const response = await fetch('/api/ai-recommendations', {
+    // Use absolute URL for API endpoint
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    const response = await fetch(`${baseUrl}/api/ai-recommendations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -11,22 +13,33 @@ export async function getAIRecommendations(weather: WeatherData, location: Locat
     })
 
     if (!response.ok) {
-      throw new Error('Failed to get AI recommendations')
+      const errorText = await response.text();
+      console.error('AI API response not OK:', response.status, errorText);
+      throw new Error(`Failed to get AI recommendations: ${response.status} ${errorText}`);
     }
 
-    const aiRecommendations: ClothingRecommendation = await response.json()
-    return aiRecommendations
+    const aiRecommendations: ClothingRecommendation = await response.json();
+    console.log('AI Recommendations from API:', aiRecommendations);
+    
+    // Validate the response structure
+    if (!aiRecommendations.description || !Array.isArray(aiRecommendations.topWear) || 
+        !Array.isArray(aiRecommendations.bottomWear) || !Array.isArray(aiRecommendations.accessories)) {
+      console.error('Invalid AI response structure:', aiRecommendations);
+      throw new Error('Invalid AI response structure');
+    }
+    
+    return aiRecommendations;
   } catch (error) {
-    console.error('Error getting AI recommendations:', error)
+    console.error('Error getting AI recommendations:', error);
     // Fallback to a basic recommendation if AI fails
-    return getFallbackRecommendations(weather)
+    return getFallbackRecommendations(weather);
   }
 }
 
 function getFallbackRecommendations(weather: WeatherData): ClothingRecommendation {
-  let topWear: ClothingItem[] = []
-  let bottomWear: ClothingItem[] = []
-  let accessories: ClothingItem[] = []
+  let topWear = []
+  let bottomWear = []
+  let accessories = []
 
   if (weather.temperature < 10) {
     topWear = [
@@ -73,9 +86,9 @@ function getFallbackRecommendations(weather: WeatherData): ClothingRecommendatio
   }
 
   return {
+    description: `Based on the current temperature of ${weather.temperature}°C and ${weather.conditions} conditions, here are some clothing recommendations to keep you comfortable and stylish.`,
     topWear,
     bottomWear,
-    accessories,
-    description: `Based on the current temperature of ${weather.temperature}°C and ${weather.conditions} conditions, here are some clothing recommendations to keep you comfortable and stylish.`
+    accessories
   }
 }
