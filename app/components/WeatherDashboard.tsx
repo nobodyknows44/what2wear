@@ -258,10 +258,6 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                   <span className="text-lg font-semibold">{weather.temperature}°C</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Thermometer className="h-6 w-6 text-red-500" />
-                  <span className="text-lg">Feels like {weather.feelsLike}°C</span>
-                </div>
-                <div className="flex items-center space-x-2">
                   {getWeatherIcon(weather.conditions)}
                   <span className="text-lg">{weather.conditions}</span>
                 </div>

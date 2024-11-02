@@ -6,15 +6,9 @@ export interface LocationData {
 
 export interface WeatherData  {
   temperature: number;
-  feelsLike: number;
   conditions: string;
   windSpeed: number;
   humidity: number;
-  upcomingHours: Array<{
-    time: string;
-    temperature: number;
-    conditions: string;
-  }>;
 }
 
 export interface ClothingItem {
