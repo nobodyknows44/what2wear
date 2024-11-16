@@ -41,7 +41,10 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen w-full relative bg-gradient-to-b from-blue-300 to-blue-400">
+    <div className="min-h-screen w-full relative">
+      {/* Fixed gradient background */}
+      <div className="fixed inset-0 w-full h-full bg-gradient-to-b from-blue-300 to-blue-400" />
+      
       {/* Unicorn Studio background */}
       <div 
         data-us-project="iUDFQNke6VXPkz6mhwie" 
