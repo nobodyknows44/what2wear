@@ -160,26 +160,26 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className={`w-[90%] max-w-3xl mx-auto backdrop-blur-sm bg-white/90 border border-white/50 shadow-lg rounded-3xl ${!showRecommendations ? 'max-w-md' : ''}`}>
       {!showRecommendations ? (
-        <CardContent className="my-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="my-8 px-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2" ref={countryRef}>
-              <label htmlFor="country" className="text-sm font-medium text-gray-700">
-                Country
+              <label htmlFor="country" className="text-sm font-semibold text-gray-700/90">
+                Your Country
               </label>
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
                 <Input
                   id="country"
                   placeholder="Search for a country"
                   value={countrySearch}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  onChange={(e) => {
                     setCountrySearch(e.target.value)
                     setShowCountryDropdown(true)
                   }}
                   onFocus={() => setShowCountryDropdown(true)}
-                  className="pl-8"
+                  className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
                 />
               </div>
               {showCountryDropdown && (
@@ -203,21 +203,21 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
               )}
             </div>
             <div className="space-y-2" ref={cityRef}>
-              <label htmlFor="city" className="text-sm font-medium text-gray-700">
-                City
+              <label htmlFor="city" className="text-sm font-semibold text-gray-700/90">
+                Your City
               </label>
               <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
                 <Input
                   id="city"
                   placeholder="Search for a city"
                   value={citySearch}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  onChange={(e) => {
                     setCitySearch(e.target.value)
                     setShowCityDropdown(true)
                   }}
                   onFocus={() => setShowCityDropdown(true)}
-                  className="pl-8"
+                  className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
                   disabled={!location.country}
                 />
               </div>
@@ -240,90 +240,126 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 </div>
               )}
             </div>
-            <Button type="submit" className="w-full" disabled={loading || !location.city || !location.country}>
-              {loading ? 'Loading...' : 'Get Recommendations'}
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
+              disabled={loading || !location.city || !location.country}
+            >
+              {loading ? 
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Crafting your style...</span>
+                </div>
+                : 
+                'Get Your Fashion Forecast ✨'
+              }
             </Button>
           </form>
         </CardContent>
       ) : (
-        <CardContent className="pt-5">
+        <CardContent className="p-8">
           {weather && recommendations && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center mb-4">
-                AI Fashion Forecast for {location.city}, {location.country} 🌈👗
-              </h2>
-              <div className="grid grid-cols-2 gap-4 bg-gradient-to-r from-blue-100 to-purple-100 p-4 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Sun className="h-6 w-6 text-yellow-500" />
-                  <span className="text-lg font-semibold">{weather.temperature}°C</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getWeatherIcon(weather.conditions)}
-                  <span className="text-lg">{weather.conditions}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Wind className="h-6 w-6 text-blue-500" />
-                  <span>{getWindDescription(weather.windSpeed)}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Droplets className="h-6 w-6 text-blue-300" />
-                  <span>{weather.humidity}%</span>
-                </div>
-              </div>
-
-              <div className="space-y-4 bg-gradient-to-r from-pink-100 to-orange-100 p-6 rounded-lg">
-                <h3 className="text-xl font-bold text-center mb-4">🎨 Your AI-Curated Outfit 🎨</h3>
-                <p className="text-gray-700 italic text-center">{recommendations.description}</p>
-                
-                {recommendations.topWear && recommendations.topWear.length > 0 && (
-                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                    <h4 className="font-bold text-lg text-purple-600">👚 Top Trends:</h4>
-                    {recommendations.topWear.map((item: ClothingItem, index: number) => (
-                      <p key={index} className="text-gray-700">
-                        {item.item} <span className="font-medium">in {item.color}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-                
-                {recommendations.bottomWear && recommendations.bottomWear.length > 0 && (
-                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                    <h4 className="font-bold text-lg text-blue-600">👖 Bottom Beats:</h4>
-                    {recommendations.bottomWear.map((item: ClothingItem, index: number) => (
-                      <p key={index} className="text-gray-700">
-                        {item.item} <span className="font-medium">in {item.color}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-                
-                {recommendations.accessories && recommendations.accessories.length > 0 && (
-                  <div className="bg-white bg-opacity-50 p-3 rounded-md">
-                    <h4 className="font-bold text-lg text-green-600">🎩 Accessory Accents:</h4>
-                    {recommendations.accessories.map((item: ClothingItem, index:  number) => (
-                      <p key={index} className="text-gray-700">
-                        {item.item} <span className="font-medium">in {item.color}</span>
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm font-semibold text-indigo-600">
-                  Remember: You're gorgeous no matter what you wear! 💖
+            <div className="space-y-8">
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-purple-600">
+                  Fashion Forecast
+                </h2>
+                <p className="text-gray-600 text-lg">
+                  {location.city}, {location.country}
                 </p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-6">
+                {[
+                  { 
+                    icon: <Thermometer className="h-10 w-10 text-pink-500" />, 
+                    value: `${weather.temperature}°C`, 
+                    label: "Temperature" 
+                  },
+                  { 
+                    icon: <Cloud className="h-10 w-10 text-gray-500" />, 
+                    value: weather.conditions, 
+                    label: "Conditions" 
+                  },
+                  { 
+                    icon: <Wind className="h-10 w-10 text-blue-500" />, 
+                    value: getWindDescription(weather.windSpeed), 
+                    label: "Wind" 
+                  },
+                  { 
+                    icon: <Droplets className="h-8 w-8 text-blue-400" />, 
+                    value: `${weather.humidity}%`, 
+                    label: "Humidity" 
+                  }
+                ].map((item, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-white rounded-3xl p-6 flex flex-col items-center text-center shadow-sm h-full"
+                  >
+                    <div className="flex flex-col items-center pt-2">
+                      <div className="flex justify-center">
+                        {item.icon}
+                      </div>
+                      <span className="text-xl text-gray-800 mt-2 mb-1">
+                        {item.value}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {item.label}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-xl p-4">
+                <h3 className="text-2xl font-bold text-purple-600 text-center mb-2">
+                  Your AI-Curated Outfit
+                </h3>
+                <p className="text-gray-700 italic text-center text-base mb-6">
+                  {recommendations.description}
+                </p>
+                
+                <div className="grid grid-cols-3 gap-8">
+                  <div>
+                    <h4 className="text-base font-bold text-purple-600 mb-3">👚 Top Trends</h4>
+                    {recommendations.topWear?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-purple-500">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-bold text-blue-600 mb-3">👖 Bottom Beats</h4>
+                    {recommendations.bottomWear?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-blue-500">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-bold text-green-600 mb-3">🎩 Accessory Accents</h4>
+                    {recommendations.accessories?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-green-500">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-6 w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white hover:from-purple-500 hover:to-pink-500 transition-all duration-300"
-            onClick={() => setShowRecommendations(false)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
-          </Button>
+          
+          <div className="flex justify-center mt-8">
+            <Button
+              variant="outline"
+              className="w-[400px] h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
+              onClick={() => setShowRecommendations(false)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
+            </Button>
+          </div>
         </CardContent>
       )}
     </Card>

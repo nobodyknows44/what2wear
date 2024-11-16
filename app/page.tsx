@@ -1,40 +1,47 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import WeatherDashboard from './components/WeatherDashboard'
-import { NotificationProvider } from './components/NotificationContext'
 import Image from 'next/image'
 
 export default function Home() {
   const [showRecommendations, setShowRecommendations] = useState(false)
 
+  useEffect(() => {
+    // Initialize Unicorn Studio
+    if (!window.UnicornStudio) {
+      window.UnicornStudio = { isInitialized: false };
+      const script = document.createElement('script');
+      script.src = "https://cdn.unicorn.studio/v1.3.2/unicornStudio.umd.js";
+      script.onload = () => {
+        if (!window.UnicornStudio.isInitialized) {
+          UnicornStudio.init();
+          window.UnicornStudio.isInitialized = true;
+        }
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
+
   return (
-    <NotificationProvider>
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/background.jpg')" }}>
-        <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center gap-8">
-          {!showRecommendations && (
-            <div className="text-center">
-              <div className="flex justify-center -mb-16">
-                <Image
-                  src="/logo_5.svg"
-                  alt="Weather Ware Logo"
-                  width={350}
-                  height={350}
-                  className="rounded-full"
-                />
-              </div>
-              <h1 className="text-4xl font-bold text-white mb-2">What To Wear Today?</h1>
-              <div className="w-24 h-px bg-white mx-auto mb-2"></div>
-              <p className="text-lg text-white/90"> Real-time weather, real-time style </p>
-            </div>
-          )}
+    <div className="min-h-screen w-full flex flex-col items-center justify-center relative">
+      <div 
+        data-us-project="iUDFQNke6VXPkz6mhwie" 
+        className="absolute inset-0 w-full h-full"
+      ></div>
+      <div className="absolute inset-0"></div>
+      <div className="relative z-10 w-[90%] max-w-7xl flex flex-col items-center justify-center gap-4">
+        <div className="text-center space-y-0 w-full">
+          <div className="flex justify-center -mb-4 w-full">
+          </div>
+        </div>
+        <div className="pt-5 w-full">
           <WeatherDashboard 
             showRecommendations={showRecommendations}
             setShowRecommendations={setShowRecommendations}
           />
         </div>
       </div>
-    </NotificationProvider>
+    </div>
   )
 }
