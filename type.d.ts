@@ -1,6 +1,6 @@
 interface Window {
     UnicornStudio?: {
       isInitialized: boolean;
-      init: () => void;
+      init?: () => void;
     };
   }

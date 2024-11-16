@@ -11,13 +11,18 @@ export default function Home() {
   useEffect(() => {
     // Initialize Unicorn Studio
     if (typeof window !== 'undefined' && !window.UnicornStudio) {
-      window.UnicornStudio = { isInitialized: false };
+      window.UnicornStudio = { 
+        isInitialized: false,
+        init: () => {
+          console.log('UnicornStudio initialized');
+          window.UnicornStudio!.isInitialized = true;
+        }
+      };
       const script = document.createElement('script');
       script.src = "https://cdn.unicorn.studio/v1.3.2/unicornStudio.umd.js";
       script.onload = () => {
         if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
-          window.UnicornStudio.init();
-          window.UnicornStudio.isInitialized = true;
+          window.UnicornStudio?.init();
         }
       };
       document.head.appendChild(script);
