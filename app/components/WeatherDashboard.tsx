@@ -183,7 +183,7 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 />
               </div>
               {showCountryDropdown && (
-                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[calc(100%-2rem)] md:w-[400px] left-1/2 -translate-x-1/2 bg-white border border-gray-300 rounded-md shadow-lg">
                   {filteredCountries.map((country) => (
                     <button
                       key={country}
@@ -222,7 +222,7 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 />
               </div>
               {showCityDropdown && location.country && (
-                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[calc(100%-2rem)] md:w-[400px] left-1/2 -translate-x-1/2 bg-white border border-gray-300 rounded-md shadow-lg">
                   {filteredCities.map((city) => (
                     <button
                       key={city}
