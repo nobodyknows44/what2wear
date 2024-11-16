@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import WeatherDashboard from './components/WeatherDashboard'
+import { NotificationProvider } from './components/NotificationContext'
 import Image from 'next/image'
 
 export default function Home() {
@@ -9,19 +10,19 @@ export default function Home() {
 
   useEffect(() => {
     // Initialize Unicorn Studio
-    if (!window.UnicornStudio) {
+    if (typeof window !== 'undefined' && !window.UnicornStudio) {
       window.UnicornStudio = { isInitialized: false };
       const script = document.createElement('script');
       script.src = "https://cdn.unicorn.studio/v1.3.2/unicornStudio.umd.js";
       script.onload = () => {
-        if (!window.UnicornStudio.isInitialized) {
-          UnicornStudio.init();
+        if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
+          window.UnicornStudio.init();
           window.UnicornStudio.isInitialized = true;
         }
       };
       document.head.appendChild(script);
     }
-  }, []);
+  }, [])
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center relative">
