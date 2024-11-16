@@ -183,7 +183,7 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 />
               </div>
               {showCountryDropdown && (
-                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
                   {filteredCountries.map((country) => (
                     <button
                       key={country}
@@ -222,7 +222,7 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 />
               </div>
               {showCityDropdown && location.country && (
-                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
                   {filteredCities.map((city) => (
                     <button
                       key={city}
@@ -269,41 +269,41 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                 </p>
               </div>
 
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {[
                   { 
-                    icon: <Thermometer className="h-10 w-10 text-pink-500" />, 
+                    icon: <Thermometer className="h-8 w-8 md:h-10 md:w-10 text-pink-500" />, 
                     value: `${weather.temperature}°C`, 
                     label: "Temperature" 
                   },
                   { 
-                    icon: <Cloud className="h-10 w-10 text-gray-500" />, 
+                    icon: <Cloud className="h-8 w-8 md:h-10 md:w-10 text-gray-500" />, 
                     value: weather.conditions, 
                     label: "Conditions" 
                   },
                   { 
-                    icon: <Wind className="h-10 w-10 text-blue-500" />, 
+                    icon: <Wind className="h-8 w-8 md:h-10 md:w-10 text-blue-500" />, 
                     value: getWindDescription(weather.windSpeed), 
                     label: "Wind" 
                   },
                   { 
-                    icon: <Droplets className="h-8 w-8 text-blue-400" />, 
+                    icon: <Droplets className="h-6 w-6 md:h-8 md:w-8 text-blue-400" />, 
                     value: `${weather.humidity}%`, 
                     label: "Humidity" 
                   }
                 ].map((item, index) => (
                   <div 
                     key={index} 
-                    className="bg-white rounded-3xl p-6 flex flex-col items-center text-center shadow-sm h-full"
+                    className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 flex flex-col items-center text-center shadow-sm h-full"
                   >
-                    <div className="flex flex-col items-center pt-2">
+                    <div className="flex flex-col items-center pt-1 md:pt-2">
                       <div className="flex justify-center">
                         {item.icon}
                       </div>
-                      <span className="text-xl text-gray-800 mt-2 mb-1">
+                      <span className="text-lg md:text-xl text-gray-800 mt-1 md:mt-2 mb-1">
                         {item.value}
                       </span>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs md:text-sm text-gray-500">
                         {item.label}
                       </span>
                     </div>
@@ -319,29 +319,35 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
                   {recommendations.description}
                 </p>
                 
-                <div className="grid grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
                   <div>
-                    <h4 className="text-base font-bold text-purple-600 mb-3">👚 Top Trends</h4>
+                    <h4 className="text-sm md:text-base font-bold text-purple-600 mb-2 md:mb-3">
+                      👚 Top Trends
+                    </h4>
                     {recommendations.topWear?.map((item: ClothingItem, index: number) => (
-                      <p key={index} className="text-base mb-2">
+                      <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
                         {item.item} <span className="text-purple-500">in {item.color}</span>
                       </p>
                     ))}
                   </div>
 
                   <div>
-                    <h4 className="text-base font-bold text-blue-600 mb-3">👖 Bottom Beats</h4>
+                    <h4 className="text-sm md:text-base font-bold text-blue-600 mb-2 md:mb-3 mt-4 md:mt-0">
+                      👖 Bottom Beats
+                    </h4>
                     {recommendations.bottomWear?.map((item: ClothingItem, index: number) => (
-                      <p key={index} className="text-base mb-2">
+                      <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
                         {item.item} <span className="text-blue-500">in {item.color}</span>
                       </p>
                     ))}
                   </div>
 
                   <div>
-                    <h4 className="text-base font-bold text-green-600 mb-3">🎩 Accessory Accents</h4>
+                    <h4 className="text-sm md:text-base font-bold text-green-600 mb-2 md:mb-3 mt-4 md:mt-0">
+                      🎩 Accessory Accents
+                    </h4>
                     {recommendations.accessories?.map((item: ClothingItem, index: number) => (
-                      <p key={index} className="text-base mb-2">
+                      <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
                         {item.item} <span className="text-green-500">in {item.color}</span>
                       </p>
                     ))}
