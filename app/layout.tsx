@@ -16,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} fixed inset-0 overflow-hidden`}>
+      <body className={`${inter.className} md:fixed md:inset-0 md:overflow-hidden overflow-auto min-h-screen`}>
         <NotificationProvider>
           {children}
         </NotificationProvider>
