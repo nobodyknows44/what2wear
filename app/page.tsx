@@ -41,7 +41,7 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen w-full relative">
+    <div className="fixed inset-0 w-full h-full overflow-hidden">
       {/* Fixed gradient background */}
       <div className="fixed inset-0 w-full h-full bg-gradient-to-b from-blue-300 to-blue-400" />
       
@@ -51,18 +51,16 @@ export default function Home() {
         className="fixed inset-0 w-full h-full"
       ></div>
       
-      {/* Content container */}
-      <div className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center px-4 py-8 md:py-0">
-        <div className="w-[90%] max-w-7xl flex flex-col items-center justify-center gap-4">
-          <div className="text-center space-y-0 w-full">
-            <div className="flex justify-center -mb-4 w-full">
+      {/* Scrollable content container */}
+      <div className="relative z-10 w-full h-full overflow-auto">
+        <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:py-0">
+          <div className="w-[90%] max-w-7xl flex flex-col items-center justify-center gap-4">
+            <div className="w-full">
+              <WeatherDashboard 
+                showRecommendations={showRecommendations}
+                setShowRecommendations={setShowRecommendations}
+              />
             </div>
-          </div>
-          <div className="w-full">
-            <WeatherDashboard 
-              showRecommendations={showRecommendations}
-              setShowRecommendations={setShowRecommendations}
-            />
           </div>
         </div>
       </div>
