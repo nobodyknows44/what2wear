@@ -179,7 +179,7 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
         `}
       >
         {!showRecommendations ? (
-          <CardContent className="my-8 px-8">
+          <CardContent className="p-4 pt-8 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2" ref={countryRef}>
                 <label htmlFor="country" className="text-sm font-semibold text-gray-700/90">
