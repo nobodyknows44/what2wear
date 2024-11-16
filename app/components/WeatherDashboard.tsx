@@ -160,216 +160,208 @@ export default function WeatherDashboard({ showRecommendations, setShowRecommend
   }
 
   return (
-    <section className="w-full min-h-screen overflow-y-auto pb-20">
-      <Card className={`w-[90%] max-w-3xl mx-auto my-4 backdrop-blur-sm bg-white/90 border border-white/50 shadow-lg rounded-3xl ${!showRecommendations ? 'max-w-md' : ''}`}>
-        {!showRecommendations ? (
-          <CardContent className="my-8 px-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2" ref={countryRef}>
-                <label htmlFor="country" className="text-sm font-semibold text-gray-700/90">
-                  Your Country
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
-                  <Input
-                    id="country"
-                    placeholder="Search for a country"
-                    value={countrySearch}
-                    onChange={(e) => {
-                      setCountrySearch(e.target.value)
-                      setShowCountryDropdown(true)
-                    }}
-                    onFocus={() => setShowCountryDropdown(true)}
-                    className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
-                  />
-                </div>
-                {showCountryDropdown && (
-                  <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredCountries.map((country) => (
-                      <button
-                        key={country}
-                        type="button"
-                        onClick={() => {
-                          setLocation(prev => ({ ...prev, country }))
-                          setCountrySearch(country)
-                          setShowCountryDropdown(false)
-                          setCitySearch('')
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        {country}
-                      </button>
-                    ))}
-                  </div>
-                )}
+    <Card className={`w-[90%] max-w-3xl mx-auto backdrop-blur-sm bg-white/90 border border-white/50 shadow-lg rounded-3xl ${!showRecommendations ? 'max-w-md' : ''}`}>
+      {!showRecommendations ? (
+        <CardContent className="my-8 px-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2" ref={countryRef}>
+              <label htmlFor="country" className="text-sm font-semibold text-gray-700/90">
+                Your Country
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
+                <Input
+                  id="country"
+                  placeholder="Search for a country"
+                  value={countrySearch}
+                  onChange={(e) => {
+                    setCountrySearch(e.target.value)
+                    setShowCountryDropdown(true)
+                  }}
+                  onFocus={() => setShowCountryDropdown(true)}
+                  className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
+                />
               </div>
-              <div className="space-y-2" ref={cityRef}>
-                <label htmlFor="city" className="text-sm font-semibold text-gray-700/90">
-                  Your City
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
-                  <Input
-                    id="city"
-                    placeholder="Search for a city"
-                    value={citySearch}
-                    onChange={(e) => {
-                      setCitySearch(e.target.value)
-                      setShowCityDropdown(true)
-                    }}
-                    onFocus={() => setShowCityDropdown(true)}
-                    className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
-                    disabled={!location.country}
-                  />
-                </div>
-                {showCityDropdown && location.country && (
-                  <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-full md:w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
-                    {filteredCities.map((city) => (
-                      <button
-                        key={city}
-                        type="button"
-                        onClick={() => {
-                          setLocation(prev => ({ ...prev, city }))
-                          setCitySearch(city)
-                          setShowCityDropdown(false)
-                        }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                      >
-                        {city}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
-                disabled={loading || !location.city || !location.country}
-              >
-                {loading ? 
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Crafting your style...</span>
-                  </div>
-                  : 
-                  'Get Your Fashion Forecast ✨'
-                }
-              </Button>
-            </form>
-          </CardContent>
-        ) : (
-          <CardContent className="p-4 md:p-8 overflow-y-auto">
-            {weather && recommendations && (
-              <div className="space-y-6 md:space-y-8">
-                <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold text-purple-600">
-                    Fashion Forecast
-                  </h2>
-                  <p className="text-gray-600 text-lg">
-                    {location.city}, {location.country}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                  {[
-                    { 
-                      icon: <Thermometer className="h-8 w-8 md:h-10 md:w-10 text-pink-500" />, 
-                      value: `${weather.temperature}°C`, 
-                      label: "Temperature" 
-                    },
-                    { 
-                      icon: <Cloud className="h-8 w-8 md:h-10 md:w-10 text-gray-500" />, 
-                      value: weather.conditions, 
-                      label: "Conditions" 
-                    },
-                    { 
-                      icon: <Wind className="h-8 w-8 md:h-10 md:w-10 text-blue-500" />, 
-                      value: getWindDescription(weather.windSpeed), 
-                      label: "Wind" 
-                    },
-                    { 
-                      icon: <Droplets className="h-6 w-6 md:h-8 md:w-8 text-blue-400" />, 
-                      value: `${weather.humidity}%`, 
-                      label: "Humidity" 
-                    }
-                  ].map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 flex flex-col items-center text-center shadow-sm h-full"
+              {showCountryDropdown && (
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                  {filteredCountries.map((country) => (
+                    <button
+                      key={country}
+                      type="button"
+                      onClick={() => {
+                        setLocation(prev => ({ ...prev, country }))
+                        setCountrySearch(country)
+                        setShowCountryDropdown(false)
+                        setCitySearch('')
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
-                      <div className="flex flex-col items-center pt-1 md:pt-2">
-                        <div className="flex justify-center">
-                          {item.icon}
-                        </div>
-                        <span className="text-lg md:text-xl text-gray-800 mt-1 md:mt-2 mb-1">
-                          {item.value}
-                        </span>
-                        <span className="text-xs md:text-sm text-gray-500">
-                          {item.label}
-                        </span>
-                      </div>
-                    </div>
+                      {country}
+                    </button>
                   ))}
                 </div>
+              )}
+            </div>
+            <div className="space-y-2" ref={cityRef}>
+              <label htmlFor="city" className="text-sm font-semibold text-gray-700/90">
+                Your City
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-purple-400" />
+                <Input
+                  id="city"
+                  placeholder="Search for a city"
+                  value={citySearch}
+                  onChange={(e) => {
+                    setCitySearch(e.target.value)
+                    setShowCityDropdown(true)
+                  }}
+                  onFocus={() => setShowCityDropdown(true)}
+                  className="pl-10 h-12 bg-white/50 border-purple-100 focus:border-purple-300 rounded-xl"
+                  disabled={!location.country}
+                />
+              </div>
+              {showCityDropdown && location.country && (
+                <div className="mt-1 max-h-40 overflow-auto absolute z-10 w-[400px] bg-white border border-gray-300 rounded-md shadow-lg">
+                  {filteredCities.map((city) => (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => {
+                        setLocation(prev => ({ ...prev, city }))
+                        setCitySearch(city)
+                        setShowCityDropdown(false)
+                      }}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
+              disabled={loading || !location.city || !location.country}
+            >
+              {loading ? 
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Crafting your style...</span>
+                </div>
+                : 
+                'Get Your Fashion Forecast ✨'
+              }
+            </Button>
+          </form>
+        </CardContent>
+      ) : (
+        <CardContent className="p-8">
+          {weather && recommendations && (
+            <div className="space-y-8">
+              <div className="text-center space-y-2">
+                <h2 className="text-3xl font-bold text-purple-600">
+                  Fashion Forecast
+                </h2>
+                <p className="text-gray-600 text-lg">
+                  {location.city}, {location.country}
+                </p>
+              </div>
 
-                <div className="bg-white rounded-xl p-4">
-                  <h3 className="text-2xl font-bold text-purple-600 text-center mb-2">
-                    Your AI-Curated Outfit
-                  </h3>
-                  <p className="text-gray-700 italic text-center text-base mb-6">
-                    {recommendations.description}
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-                    <div>
-                      <h4 className="text-sm md:text-base font-bold text-purple-600 mb-2 md:mb-3">
-                        👚 Top Trends
-                      </h4>
-                      {recommendations.topWear?.map((item: ClothingItem, index: number) => (
-                        <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
-                          {item.item} <span className="text-purple-500">in {item.color}</span>
-                        </p>
-                      ))}
+              <div className="grid grid-cols-4 gap-6">
+                {[
+                  { 
+                    icon: <Thermometer className="h-10 w-10 text-pink-500" />, 
+                    value: `${weather.temperature}°C`, 
+                    label: "Temperature" 
+                  },
+                  { 
+                    icon: <Cloud className="h-10 w-10 text-gray-500" />, 
+                    value: weather.conditions, 
+                    label: "Conditions" 
+                  },
+                  { 
+                    icon: <Wind className="h-10 w-10 text-blue-500" />, 
+                    value: getWindDescription(weather.windSpeed), 
+                    label: "Wind" 
+                  },
+                  { 
+                    icon: <Droplets className="h-8 w-8 text-blue-400" />, 
+                    value: `${weather.humidity}%`, 
+                    label: "Humidity" 
+                  }
+                ].map((item, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-white rounded-3xl p-6 flex flex-col items-center text-center shadow-sm h-full"
+                  >
+                    <div className="flex flex-col items-center pt-2">
+                      <div className="flex justify-center">
+                        {item.icon}
+                      </div>
+                      <span className="text-xl text-gray-800 mt-2 mb-1">
+                        {item.value}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {item.label}
+                      </span>
                     </div>
+                  </div>
+                ))}
+              </div>
 
-                    <div>
-                      <h4 className="text-sm md:text-base font-bold text-blue-600 mb-2 md:mb-3 mt-4 md:mt-0">
-                        👖 Bottom Beats
-                      </h4>
-                      {recommendations.bottomWear?.map((item: ClothingItem, index: number) => (
-                        <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
-                          {item.item} <span className="text-blue-500">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
+              <div className="bg-white rounded-xl p-4">
+                <h3 className="text-2xl font-bold text-purple-600 text-center mb-2">
+                  Your AI-Curated Outfit
+                </h3>
+                <p className="text-gray-700 italic text-center text-base mb-6">
+                  {recommendations.description}
+                </p>
+                
+                <div className="grid grid-cols-3 gap-8">
+                  <div>
+                    <h4 className="text-base font-bold text-purple-600 mb-3">👚 Top Trends</h4>
+                    {recommendations.topWear?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-purple-500">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
 
-                    <div>
-                      <h4 className="text-sm md:text-base font-bold text-green-600 mb-2 md:mb-3 mt-4 md:mt-0">
-                        🎩 Accessory Accents
-                      </h4>
-                      {recommendations.accessories?.map((item: ClothingItem, index: number) => (
-                        <p key={index} className="text-sm md:text-base mb-1 md:mb-2">
-                          {item.item} <span className="text-green-500">in {item.color}</span>
-                        </p>
-                      ))}
-                    </div>
+                  <div>
+                    <h4 className="text-base font-bold text-blue-600 mb-3">👖 Bottom Beats</h4>
+                    {recommendations.bottomWear?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-blue-500">in {item.color}</span>
+                      </p>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-bold text-green-600 mb-3">🎩 Accessory Accents</h4>
+                    {recommendations.accessories?.map((item: ClothingItem, index: number) => (
+                      <p key={index} className="text-base mb-2">
+                        {item.item} <span className="text-green-500">in {item.color}</span>
+                      </p>
+                    ))}
                   </div>
                 </div>
               </div>
-            )}
-            
-            <div className="flex justify-center mt-6 md:mt-8 pb-4">
-              <Button
-                variant="outline"
-                className="w-full md:w-[400px] h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
-                onClick={() => setShowRecommendations(false)}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
-              </Button>
             </div>
-          </CardContent>
-        )}
-      </Card>
-    </section>
+          )}
+          
+          <div className="flex justify-center mt-8">
+            <Button
+              variant="outline"
+              className="w-[400px] h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold shadow-lg transition-all duration-300"
+              onClick={() => setShowRecommendations(false)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Fashion Machine
+            </Button>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   )
 }
