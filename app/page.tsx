@@ -5,6 +5,16 @@ import WeatherDashboard from './components/WeatherDashboard'
 import { NotificationProvider } from './components/NotificationContext'
 import Image from 'next/image'
 
+// First, add type declaration
+declare global {
+  interface Window {
+    UnicornStudio: {
+      init: () => void;
+      isInitialized?: boolean;
+    }
+  }
+}
+
 export default function Home() {
   const [showRecommendations, setShowRecommendations] = useState(false)
 
@@ -21,8 +31,12 @@ export default function Home() {
       const script = document.createElement('script');
       script.src = "https://cdn.unicorn.studio/v1.3.2/unicornStudio.umd.js";
       script.onload = () => {
-        if (window.UnicornStudio && !window.UnicornStudio.isInitialized) {
-          window.UnicornStudio?.init();
+        // Type guard to ensure UnicornStudio exists
+        if (typeof window !== 'undefined' && 
+            window.UnicornStudio && 
+            !window.UnicornStudio.isInitialized) {
+          // Safe to call init now
+          window.UnicornStudio.init();
         }
       };
       document.head.appendChild(script);
