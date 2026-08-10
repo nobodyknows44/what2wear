@@ -1,0 +1,24 @@
+{
+  "name": "bankrot-radar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Сбор, нормализация, оценка и скоринг лотов торгов по банкротству (127-ФЗ) и имущественных торгов",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "radar": "node --disable-warning=ExperimentalWarning src/cli.ts",
+    "ingest": "node --disable-warning=ExperimentalWarning src/cli.ts ingest",
+    "score": "node --disable-warning=ExperimentalWarning src/cli.ts score",
+    "alert": "node --disable-warning=ExperimentalWarning src/cli.ts alert",
+    "run": "node --disable-warning=ExperimentalWarning src/cli.ts run",
+    "demo": "node --disable-warning=ExperimentalWarning src/cli.ts seed-demo",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

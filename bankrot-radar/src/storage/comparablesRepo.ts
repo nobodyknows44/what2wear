@@ -1,0 +1,99 @@
+/**
+ * Состоявшиеся продажи — обучающая выборка для оценки.
+ *
+ * Это самый ценный актив сервиса и он накапливается только со временем:
+ * результаты торгов публикуются в ЕФРСБ, но нигде не собираются в датасет.
+ * Чем дольше сервис работает, тем точнее считается дисконт.
+ */
+
+import type { Comparable, ComparablesQuery, ComparablesSource } from '../enrich/estimator.ts';
+import type { Db } from './db.ts';
+import { sqlValue } from './db.ts';
+
+export interface SoldLotInput extends Comparable {
+  id: string;
+  title?: string;
+}
+
+export class ComparablesRepo implements ComparablesSource {
+  #db: Db;
+
+  constructor(db: Db) {
+    this.#db = db;
+  }
+
+  add(sold: SoldLotInput): void {
+    this.#db
+      .prepare(
+        `INSERT INTO sold_lots (id, asset_kind, region_code, area_sqm, start_price, sold_price, sold_at, title)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO UPDATE SET
+           asset_kind = excluded.asset_kind,
+           region_code = excluded.region_code,
+           area_sqm = excluded.area_sqm,
+           start_price = excluded.start_price,
+           sold_price = excluded.sold_price,
+           sold_at = excluded.sold_at,
+           title = excluded.title`,
+      )
+      .run(
+        sold.id,
+        sold.assetKind,
+        sqlValue(sold.regionCode),
+        sqlValue(sold.areaSqm),
+        sold.startPrice,
+        sold.soldPrice,
+        sold.soldAt,
+        sqlValue(sold.title),
+      );
+  }
+
+  addMany(items: readonly SoldLotInput[]): void {
+    for (const item of items) this.add(item);
+  }
+
+  find(query: ComparablesQuery): Comparable[] {
+    const conditions = ['asset_kind = ?'];
+    const params: (string | number)[] = [query.assetKind];
+
+    if (typeof query.regionCode === 'number') {
+      conditions.push('region_code = ?');
+      params.push(query.regionCode);
+    }
+    if (typeof query.minArea === 'number') {
+      conditions.push('area_sqm >= ?');
+      params.push(query.minArea);
+    }
+    if (typeof query.maxArea === 'number') {
+      conditions.push('area_sqm <= ?');
+      params.push(query.maxArea);
+    }
+
+    const rows = this.#db
+      .prepare(
+        `SELECT asset_kind, region_code, area_sqm, start_price, sold_price, sold_at
+         FROM sold_lots
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY sold_at DESC
+         LIMIT 200`,
+      )
+      .all(...params);
+
+    return rows.map((raw) => {
+      const row = raw as Record<string, unknown>;
+      return {
+        assetKind: String(row.asset_kind),
+        regionCode: row.region_code === null ? undefined : Number(row.region_code),
+        areaSqm: row.area_sqm === null ? undefined : Number(row.area_sqm),
+        startPrice: Number(row.start_price),
+        soldPrice: Number(row.sold_price),
+        soldAt: String(row.sold_at),
+      };
+    });
+  }
+
+  count(): number {
+    const row = this.#db.prepare('SELECT COUNT(*) AS n FROM sold_lots').get() as { n: number };
+    return Number(row.n);
+  }
+}
