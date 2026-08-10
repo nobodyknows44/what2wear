@@ -7,20 +7,24 @@
  */
 
 import type { Config } from './config.ts';
+import type { EnrichmentFact } from './domain/facts.ts';
 import type { Lot } from './domain/lot.ts';
 import { lotAssetKind } from './domain/lot.ts';
 import { priceAt } from './domain/priceSchedule.ts';
+import type { EnrichmentRunner, EnrichmentStats } from './enrich/enricher.ts';
 import type { Estimator } from './enrich/estimator.ts';
 import type { RawSale, SaleImportStats } from './enrich/sales.ts';
 import { emptyImportStats, resolveSale } from './enrich/sales.ts';
 import { formatAlert } from './notify/format.ts';
 import type { Notifier } from './notify/notifier.ts';
+import { applyFacts } from './score/registryFlags.ts';
 import { scoreLot } from './score/score.ts';
 import type { SalesSource, Source } from './sources/types.ts';
 import type { Db } from './storage/db.ts';
 import { sqlValue } from './storage/db.ts';
 import type { AlertsRepo } from './storage/alertsRepo.ts';
 import { ComparablesRepo } from './storage/comparablesRepo.ts';
+import { LotFactsRepo } from './storage/enrichmentRepo.ts';
 import type { LotsRepo } from './storage/lotsRepo.ts';
 
 export interface PipelineDeps {
@@ -137,17 +141,88 @@ export async function harvestSales(
   return importSales(deps, raws);
 }
 
+/**
+ * Первый проход скоринга: бесплатный, по всем активным лотам.
+ * Уже известные реестровые факты подхватываются — повторно за них не платим.
+ */
 export async function scoreAll(deps: PipelineDeps, now: Date): Promise<{ scored: number }> {
   const lots = deps.lots.list({ acceptingAt: now });
+  const facts = new LotFactsRepo(deps.db);
   let scored = 0;
 
   for (const lot of lots) {
     const estimate = await deps.estimator.estimate(lot);
-    deps.lots.saveScore(lot.id, scoreLot({ lot, estimate, now }), now);
+    deps.lots.saveScore(lot.id, scoreLot({ lot, estimate, now, facts: facts.get(lot.id) }), now);
     scored++;
   }
 
   return { scored };
+}
+
+export interface EnrichCandidatesOptions {
+  /** Минимальный балл первого прохода. Обогащать весь поток нерентабельно. */
+  minScore: number;
+  /** Сколько кандидатов взять в работу за прогон. */
+  limit: number;
+}
+
+/**
+ * Второй проход: обогащение кандидатов и пересчёт их скоринга.
+ *
+ * Порядок именно такой, потому что запросы к реестрам платные. Сначала лоты
+ * ранжируются по тому, что известно бесплатно, затем реестры опрашиваются
+ * только по верхушке — и балл этой верхушки уточняется фактами вместо догадок.
+ *
+ * Побочный эффект, ради которого стоит терпеть сложность: подтверждённая ЕГРН
+ * площадь исправляет ту, что была вытащена из текста, а от неё зависит вся
+ * оценка недвижимости по цене за метр.
+ */
+export async function enrichCandidates(
+  deps: PipelineDeps,
+  runner: EnrichmentRunner,
+  now: Date,
+  options: EnrichCandidatesOptions,
+): Promise<EnrichmentStats> {
+  const candidates = deps.lots.topScored(options.minScore, options.limit);
+  const factsRepo = new LotFactsRepo(deps.db);
+
+  for (const candidate of candidates) {
+    const lot = candidate.lot;
+    const facts = await runner.enrich(lot, now);
+    if (facts.length === 0) continue;
+
+    factsRepo.put(lot.id, facts, now);
+
+    const corrected = applyCorrections(lot, facts);
+    if (corrected) deps.lots.upsert(corrected, now);
+
+    const target = corrected ?? lot;
+    const estimate = await deps.estimator.estimate(target);
+    deps.lots.saveScore(target.id, scoreLot({ lot: target, estimate, now, facts }), now);
+  }
+
+  return runner.stats;
+}
+
+/**
+ * Поправки к лоту по реестровым данным. Возвращает null, если исправлять нечего:
+ * лишняя запись в базу перетирает last_seen_at и мешает читать журнал.
+ */
+export function applyCorrections(lot: Lot, facts: readonly EnrichmentFact[]): Lot | null {
+  const { areaSqm, regionCode } = applyFacts(facts);
+
+  const areaChanged =
+    areaSqm !== undefined && lot.assets.length === 1 && lot.assets[0]!.areaSqm !== areaSqm;
+  const regionChanged = regionCode !== undefined && lot.regionCode !== regionCode;
+  if (!areaChanged && !regionChanged) return null;
+
+  return {
+    ...lot,
+    regionCode: regionChanged ? regionCode : lot.regionCode,
+    assets: areaChanged
+      ? lot.assets.map((asset, index) => (index === 0 ? { ...asset, areaSqm } : asset))
+      : lot.assets,
+  };
 }
 
 export async function sendAlerts(

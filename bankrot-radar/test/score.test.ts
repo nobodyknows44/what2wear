@@ -61,16 +61,29 @@ test('detectRisks: чистый текст не порождает флагов'
 });
 
 test('riskPenalty: растёт с тяжестью, но ограничен сверху', () => {
-  const light = riskPenalty([{ code: 'pledge', severity: 1, label: '', evidence: '' }]);
+  const light = riskPenalty([
+    { code: 'pledge', severity: 1, label: '', evidence: '', source: 'text' },
+  ]);
   const heavy = riskPenalty([
-    { code: 'lease', severity: 3, label: '', evidence: '' },
-    { code: 'residents', severity: 3, label: '', evidence: '' },
-    { code: 'litigation', severity: 3, label: '', evidence: '' },
+    { code: 'lease', severity: 3, label: '', evidence: '', source: 'text' },
+    { code: 'residents', severity: 3, label: '', evidence: '', source: 'text' },
+    { code: 'litigation', severity: 3, label: '', evidence: '', source: 'text' },
   ]);
 
   assert.ok(light < heavy);
   assert.ok(heavy <= 40);
   assert.equal(riskPenalty([]), 0);
+});
+
+test('riskPenalty: реестровый факт весит больше текстовой догадки', () => {
+  const guessed = riskPenalty([
+    { code: 'lease', severity: 3, label: '', evidence: '', source: 'text' },
+  ]);
+  const confirmed = riskPenalty([
+    { code: 'lease', severity: 3, label: '', evidence: '', source: 'registry' },
+  ]);
+
+  assert.ok(confirmed > guessed);
 });
 
 test('liquidityScore: недвижимость в Москве ликвиднее оборудования в глубинке', () => {

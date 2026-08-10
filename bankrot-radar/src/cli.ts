@@ -13,6 +13,9 @@ import { loadConfig } from './config.ts';
 import type { Config } from './config.ts';
 import { regionName } from './domain/regions.ts';
 import { describeImportStats } from './enrich/sales.ts';
+import { EnrichmentRunner } from './enrich/enricher.ts';
+import type { Enricher } from './enrich/enricher.ts';
+import { EgrnEnricher, FnpPledgeEnricher, ManualFactsEnricher } from './enrich/providers.ts';
 import { salesFromCsv } from './import/csv.ts';
 import {
   ComparablesEstimator,
@@ -22,7 +25,14 @@ import {
 import type { Estimator } from './enrich/estimator.ts';
 import { ConsoleNotifier, TelegramNotifier } from './notify/notifier.ts';
 import type { Notifier } from './notify/notifier.ts';
-import { harvestSales, importSales, ingest, scoreAll, sendAlerts } from './pipeline.ts';
+import {
+  enrichCandidates,
+  harvestSales,
+  importSales,
+  ingest,
+  scoreAll,
+  sendAlerts,
+} from './pipeline.ts';
 import type { PipelineDeps } from './pipeline.ts';
 import { FedresursSource } from './sources/fedresurs.ts';
 import { TorgiGovSource } from './sources/torgiGov.ts';
@@ -30,6 +40,7 @@ import type { Source } from './sources/types.ts';
 import { AlertsRepo } from './storage/alertsRepo.ts';
 import { ComparablesRepo } from './storage/comparablesRepo.ts';
 import { openDb } from './storage/db.ts';
+import { EnrichmentCacheRepo, LotFactsRepo } from './storage/enrichmentRepo.ts';
 import { LotsRepo } from './storage/lotsRepo.ts';
 import { demoComparables, demoLots } from './demo/seed.ts';
 
@@ -39,6 +50,7 @@ const HELP = `bankrot-radar — сбор, оценка и скоринг лот�
   harvest [--days N] [--limit N]  собрать результаты состоявшихся торгов (обучение оценки)
   import-sales <файл.csv>         загрузить результаты торгов из CSV
   score                           пересчитать оценку и скоринг активных лотов
+  enrich [--min N] [--limit N]    обогатить кандидатов данными реестров и пересчитать их балл
   alert                           разослать алерты по лотам выше порога
   run [--days N]                  ingest + score + alert одной командой
   top [--min N] [--limit N]       показать лучшие лоты в терминале
@@ -132,6 +144,35 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
 
+    case 'enrich': {
+      const enrichers = buildEnrichers(config);
+      if (enrichers.length === 0) {
+        console.error(
+          'Ни один провайдер обогащения не настроен.\n' +
+            'Самый быстрый старт без API: проверьте несколько объектов вручную, сложите факты\n' +
+            'в JSON и укажите путь в ENRICH_MANUAL_FACTS. См. README, раздел «Обогащение».',
+        );
+        return 1;
+      }
+
+      const runner = new EnrichmentRunner(enrichers, new EnrichmentCacheRepo(context.db), {
+        maxRequests: Number(flags['max-requests'] ?? config.enrichment.maxRequests),
+      });
+
+      const stats = await enrichCandidates(context, runner, now, {
+        minScore: Number(flags.min ?? config.enrichment.minScore),
+        limit: Number(flags.limit ?? config.enrichment.limit),
+      });
+
+      console.log(
+        `Обогащено лотов: ${stats.lots}. Из кэша ${stats.fromCache}, запросов ${stats.fetched}, ` +
+          `ошибок ${stats.failed}, неприменимо ${stats.notApplicable}` +
+          (stats.budgetExhausted > 0 ? `, упёрлось в бюджет ${stats.budgetExhausted}` : '') +
+          `. Остаток бюджета: ${runner.remainingBudget}.`,
+      );
+      return 0;
+    }
+
     case 'alert': {
       const { sent, suppressed } = await sendAlerts(context, now);
       console.log(`Отправлено ${sent}, подавлено как повтор ${suppressed}`);
@@ -181,6 +222,29 @@ async function main(argv: string[]): Promise<number> {
       console.log(HELP);
       return 2;
   }
+}
+
+/**
+ * Провайдеры обогащения. Ручные факты идут первыми: проверенное человеком
+ * достовернее любого автоматического ответа и не тратит бюджет запросов.
+ */
+function buildEnrichers(config: Config): Enricher[] {
+  const enrichers: Enricher[] = [];
+  const { manualFactsPath, egrn, fnp } = config.enrichment;
+
+  if (manualFactsPath) {
+    try {
+      enrichers.push(ManualFactsEnricher.fromFile(manualFactsPath));
+    } catch (error) {
+      console.warn(
+        `Не удалось прочитать ${manualFactsPath}: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+  if (egrn.enabled) enrichers.push(new EgrnEnricher(egrn));
+  if (fnp.enabled) enrichers.push(new FnpPledgeEnricher(fnp));
+
+  return enrichers;
 }
 
 function createContext(config: Config): PipelineDeps {

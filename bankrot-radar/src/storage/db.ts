@@ -93,6 +93,26 @@ CREATE TABLE IF NOT EXISTS sold_lots (
 );
 CREATE INDEX IF NOT EXISTS idx_sold_kind_region ON sold_lots (asset_kind, region_code);
 
+-- Кэш ответов реестров. Запросы платные и лимитированные, поэтому кэш здесь
+-- не оптимизация, а условие применимости: без него один прогон по кандидатам
+-- стоил бы как месяц подписки.
+CREATE TABLE IF NOT EXISTS enrichment_cache (
+  provider   TEXT NOT NULL,
+  subject    TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  facts      TEXT NOT NULL,
+  error      TEXT,
+  PRIMARY KEY (provider, subject)
+);
+
+-- Факты, применённые к конкретному лоту: нужны, чтобы пересчитать скоринг
+-- без повторного обращения к реестрам.
+CREATE TABLE IF NOT EXISTS lot_facts (
+  lot_id     TEXT PRIMARY KEY,
+  updated_at TEXT NOT NULL,
+  facts      TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
   lot_id     TEXT NOT NULL,
   channel    TEXT NOT NULL,

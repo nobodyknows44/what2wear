@@ -34,6 +34,28 @@ export interface Config {
     uplift: number;
     minComparables: number;
   };
+  enrichment: {
+    /** Минимальный балл первого прохода, начиная с которого лот достоин платного запроса. */
+    minScore: number;
+    /** Сколько кандидатов брать за прогон. */
+    limit: number;
+    /** Потолок платных запросов за прогон — страховка от ошибки в логике отбора. */
+    maxRequests: number;
+    /** Путь к JSON с проверенными вручную фактами. Работает без всяких API. */
+    manualFactsPath?: string;
+    egrn: HttpProviderSettings;
+    fnp: HttpProviderSettings;
+  };
+}
+
+export interface HttpProviderSettings {
+  enabled: boolean;
+  baseUrl: string;
+  path: string;
+  authHeader: string;
+  key: string;
+  subjectParam: string;
+  ttlDays: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -72,6 +94,47 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       uplift: number(env.ESTIMATE_UPLIFT, 1),
       minComparables: number(env.ESTIMATE_MIN_COMPARABLES, 5),
     },
+    enrichment: {
+      minScore: number(env.ENRICH_MIN_SCORE, 55),
+      limit: number(env.ENRICH_LIMIT, 50),
+      maxRequests: number(env.ENRICH_MAX_REQUESTS, 100),
+      manualFactsPath: env.ENRICH_MANUAL_FACTS || undefined,
+      egrn: httpProvider(env, 'EGRN', {
+        path: '/v1/objects',
+        subjectParam: 'cadastralNumber',
+        ttlDays: 30,
+      }),
+      fnp: httpProvider(env, 'FNP', {
+        path: '/v1/pledges',
+        subjectParam: 'vin',
+        ttlDays: 7,
+      }),
+    },
+  };
+}
+
+interface ProviderDefaults {
+  path: string;
+  subjectParam: string;
+  ttlDays: number;
+}
+
+function httpProvider(
+  env: NodeJS.ProcessEnv,
+  prefix: string,
+  defaults: ProviderDefaults,
+): HttpProviderSettings {
+  const key = env[`${prefix}_KEY`] ?? '';
+  return {
+    // Провайдер без ключа не включается: иначе каждый запрос уходил бы в 401,
+    // сжигая бюджет прогона на бессмысленные обращения.
+    enabled: flag(env[`${prefix}_ENABLED`]) && key !== '',
+    baseUrl: env[`${prefix}_BASE_URL`] ?? '',
+    path: env[`${prefix}_PATH`] ?? defaults.path,
+    authHeader: env[`${prefix}_AUTH_HEADER`] ?? 'Authorization',
+    key,
+    subjectParam: env[`${prefix}_SUBJECT_PARAM`] ?? defaults.subjectParam,
+    ttlDays: number(env[`${prefix}_TTL_DAYS`], defaults.ttlDays),
   };
 }
 

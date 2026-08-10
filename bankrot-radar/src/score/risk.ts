@@ -24,12 +24,20 @@ export type RiskCode =
 /** 3 — может лишить смысла покупку; 2 — заметно бьёт по цене; 1 — требует проверки. */
 export type RiskSeverity = 1 | 2 | 3;
 
+/**
+ * Откуда флаг. Текстовый — догадка по формулировке извещения, реестровый — факт
+ * из ЕГРН или ФНП. Разница принципиальна и в весе штрафа, и в том, что реестровый
+ * ответ «обременений нет» отменяет текстовую догадку.
+ */
+export type RiskFlagSource = 'text' | 'registry';
+
 export interface RiskFlag {
   code: RiskCode;
   severity: RiskSeverity;
   label: string;
-  /** Фрагмент текста, по которому сработало правило — чтобы флаг можно было проверить. */
+  /** Фрагмент текста или расшифровка реестрового ответа — чтобы флаг можно было проверить. */
   evidence: string;
+  source: RiskFlagSource;
 }
 
 interface RiskRule {
@@ -141,19 +149,55 @@ export function detectRisks(text: string): RiskFlag[] {
       severity: rule.severity,
       label: rule.label,
       evidence: excerpt(text, match.index, match[0].length),
+      source: 'text',
     });
   }
 
   return flags.sort((a, b) => b.severity - a.severity);
 }
 
+/** Текстовый флаг — догадка по формулировке, поэтому весит меньше реестрового факта. */
+const SOURCE_WEIGHT: Readonly<Record<RiskFlagSource, number>> = { text: 0.7, registry: 1 };
+
 /**
  * Штраф к скорингу, 0..40 баллов. Растёт нелинейно: один флаг третьего уровня
  * важнее трёх флагов первого, а десяток мелких замечаний не должен обнулять лот.
  */
 export function riskPenalty(flags: readonly RiskFlag[]): number {
-  const weight = flags.reduce((sum, flag) => sum + flag.severity ** 2, 0);
+  const weight = flags.reduce(
+    (sum, flag) => sum + flag.severity ** 2 * SOURCE_WEIGHT[flag.source],
+    0,
+  );
   return Math.min(40, Math.round(40 * (1 - Math.exp(-weight / 12))));
+}
+
+/**
+ * Слияние текстовых догадок с реестровыми фактами.
+ *
+ * Три правила, и второе с третьим — главная причина, ради которой обогащение
+ * вообще делается:
+ *   1. Реестровый флаг вытесняет текстовый флаг того же вида.
+ *   2. Подтверждённое реестром отсутствие снимает текстовую догадку. Слово «залог»
+ *      в извещении часто относится к положению должника, а не к этому объекту.
+ *   3. Всё остальное сохраняется как есть.
+ */
+export function mergeRiskFlags(
+  textFlags: readonly RiskFlag[],
+  registryFlags: readonly RiskFlag[],
+  clearedCodes: readonly RiskCode[] = [],
+): RiskFlag[] {
+  const registryCodes = new Set(registryFlags.map((flag) => flag.code));
+  const cleared = new Set(clearedCodes);
+
+  const survivingText = textFlags.filter(
+    (flag) => !registryCodes.has(flag.code) && !cleared.has(flag.code),
+  );
+
+  return [...registryFlags, ...survivingText].sort((a, b) => {
+    if (b.severity !== a.severity) return b.severity - a.severity;
+    // При равной тяжести факт показывается раньше догадки.
+    return SOURCE_WEIGHT[b.source] - SOURCE_WEIGHT[a.source];
+  });
 }
 
 function excerpt(text: string, index: number, length: number): string {

@@ -7,13 +7,15 @@
  * должен объясняться строкой в `reasons`.
  */
 
+import type { EnrichmentFact } from '../domain/facts.ts';
 import type { Lot } from '../domain/lot.ts';
 import { lotAssetKind } from '../domain/lot.ts';
 import { priceAt, nextDrop } from '../domain/priceSchedule.ts';
 import type { Estimate } from '../enrich/estimator.ts';
 import { liquidityScore } from './liquidity.ts';
+import { applyFacts } from './registryFlags.ts';
 import type { RiskFlag } from './risk.ts';
-import { detectRisks, riskPenalty } from './risk.ts';
+import { detectRisks, mergeRiskFlags, riskPenalty } from './risk.ts';
 
 /** Дисконт, при котором компонент цены даёт максимум баллов. */
 const TARGET_DISCOUNT = 0.6;
@@ -45,11 +47,14 @@ export interface ScoreInput {
   lot: Lot;
   estimate: Estimate | null;
   now: Date;
+  /** Факты из реестров, если лот проходил обогащение. Уточняют и отменяют текстовые догадки. */
+  facts?: readonly EnrichmentFact[];
 }
 
-export function scoreLot({ lot, estimate, now }: ScoreInput): ScoreResult {
+export function scoreLot({ lot, estimate, now, facts = [] }: ScoreInput): ScoreResult {
   const text = `${lot.title}\n${lot.description ?? ''}`;
-  const flags = detectRisks(text);
+  const registry = applyFacts(facts);
+  const flags = mergeRiskFlags(detectRisks(text), registry.flags, registry.cleared);
   const penalty = riskPenalty(flags);
   const currentPrice = priceAt(lot.priceSchedule, now) ?? lot.startPrice ?? null;
   const reasons: string[] = [];
@@ -89,8 +94,14 @@ export function scoreLot({ lot, estimate, now }: ScoreInput): ScoreResult {
     );
   }
 
-  for (const flag of flags.filter((f) => f.severity === 3)) {
+  for (const flag of flags.filter((f) => f.severity === 3 || f.source === 'registry')) {
     reasons.push(`Риск: ${flag.label}`);
+  }
+
+  // Снятая догадка — тоже полезная информация: она объясняет, почему лот
+  // с тревожным текстом извещения всё-таки поднялся в топе.
+  if (registry.cleared.length > 0) {
+    reasons.push('Реестр не подтвердил обременения, найденные в тексте извещения');
   }
 
   let score =
