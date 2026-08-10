@@ -96,4 +96,30 @@ export class ComparablesRepo implements ComparablesSource {
     const row = this.#db.prepare('SELECT COUNT(*) AS n FROM sold_lots').get() as { n: number };
     return Number(row.n);
   }
+
+  /**
+   * Наполненность выборки по видам имущества. По ней видно, для каких категорий
+   * оценка уже работает, а для каких скоринг пока упирается в потолок без оценки.
+   */
+  countByKind(): { assetKind: string; total: number; withRegion: number }[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT asset_kind,
+                COUNT(*) AS total,
+                SUM(CASE WHEN region_code IS NOT NULL THEN 1 ELSE 0 END) AS with_region
+         FROM sold_lots
+         GROUP BY asset_kind
+         ORDER BY total DESC`,
+      )
+      .all();
+
+    return rows.map((raw) => {
+      const row = raw as Record<string, unknown>;
+      return {
+        assetKind: String(row.asset_kind),
+        total: Number(row.total),
+        withRegion: Number(row.with_region ?? 0),
+      };
+    });
+  }
 }

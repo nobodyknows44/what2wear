@@ -11,13 +11,16 @@ import type { Lot } from './domain/lot.ts';
 import { lotAssetKind } from './domain/lot.ts';
 import { priceAt } from './domain/priceSchedule.ts';
 import type { Estimator } from './enrich/estimator.ts';
+import type { RawSale, SaleImportStats } from './enrich/sales.ts';
+import { emptyImportStats, resolveSale } from './enrich/sales.ts';
 import { formatAlert } from './notify/format.ts';
 import type { Notifier } from './notify/notifier.ts';
 import { scoreLot } from './score/score.ts';
-import type { Source } from './sources/types.ts';
+import type { SalesSource, Source } from './sources/types.ts';
 import type { Db } from './storage/db.ts';
 import { sqlValue } from './storage/db.ts';
 import type { AlertsRepo } from './storage/alertsRepo.ts';
+import { ComparablesRepo } from './storage/comparablesRepo.ts';
 import type { LotsRepo } from './storage/lotsRepo.ts';
 
 export interface PipelineDeps {
@@ -97,6 +100,41 @@ export async function ingest(
   }
 
   return results;
+}
+
+/**
+ * Загрузка результатов состоявшихся торгов в обучающую выборку.
+ *
+ * Отдельная фаза, а не часть ingest: результаты публикуются с задержкой
+ * в месяцы, поэтому их собирают по широкому окну и редко, тогда как объявления
+ * нужны свежими и часто.
+ */
+export function importSales(deps: PipelineDeps, raws: readonly RawSale[]): SaleImportStats {
+  const comparables = new ComparablesRepo(deps.db);
+  const stats = emptyImportStats();
+  const lookup = (key: string) => deps.lots.get(key);
+
+  for (const raw of raws) {
+    stats.total++;
+    const { sale, reason } = resolveSale(raw, lookup);
+    if (!sale) {
+      if (reason) stats.rejected[reason]++;
+      continue;
+    }
+    comparables.add(sale);
+    stats.accepted++;
+  }
+
+  return stats;
+}
+
+export async function harvestSales(
+  deps: PipelineDeps,
+  source: SalesSource,
+  window: { from: Date; to: Date; limit?: number },
+): Promise<SaleImportStats> {
+  const raws = await source.collectSales(window);
+  return importSales(deps, raws);
 }
 
 export async function scoreAll(deps: PipelineDeps, now: Date): Promise<{ scored: number }> {

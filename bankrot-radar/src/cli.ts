@@ -6,9 +6,14 @@
 //   0    * * * *  cd /opt/bankrot-radar && npm run score
 //   5    * * * *  cd /opt/bankrot-radar && npm run alert
 
+import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
+
 import { loadConfig } from './config.ts';
 import type { Config } from './config.ts';
 import { regionName } from './domain/regions.ts';
+import { describeImportStats } from './enrich/sales.ts';
+import { salesFromCsv } from './import/csv.ts';
 import {
   ComparablesEstimator,
   CompositeEstimator,
@@ -17,7 +22,7 @@ import {
 import type { Estimator } from './enrich/estimator.ts';
 import { ConsoleNotifier, TelegramNotifier } from './notify/notifier.ts';
 import type { Notifier } from './notify/notifier.ts';
-import { ingest, scoreAll, sendAlerts } from './pipeline.ts';
+import { harvestSales, importSales, ingest, scoreAll, sendAlerts } from './pipeline.ts';
 import type { PipelineDeps } from './pipeline.ts';
 import { FedresursSource } from './sources/fedresurs.ts';
 import { TorgiGovSource } from './sources/torgiGov.ts';
@@ -31,11 +36,13 @@ import { demoComparables, demoLots } from './demo/seed.ts';
 const HELP = `bankrot-radar — сбор, оценка и скоринг лотов торгов
 
   ingest [--days N] [--limit N]   собрать лоты из включённых источников
+  harvest [--days N] [--limit N]  собрать результаты состоявшихся торгов (обучение оценки)
+  import-sales <файл.csv>         загрузить результаты торгов из CSV
   score                           пересчитать оценку и скоринг активных лотов
   alert                           разослать алерты по лотам выше порога
   run [--days N]                  ingest + score + alert одной командой
   top [--min N] [--limit N]       показать лучшие лоты в терминале
-  stats                           состояние базы и последние прогоны
+  stats                           состояние базы, наполненность выборки, прогоны
   seed-demo                       залить демо-данные и прогнать конвейер офлайн
 
 Конфигурация читается из окружения, см. .env.example.
@@ -66,6 +73,57 @@ async function main(argv: string[]): Promise<number> {
         );
       }
       return results.some((r) => r.error) ? 1 : 0;
+    }
+
+    case 'harvest': {
+      if (!config.fedresurs.enabled) {
+        console.error(
+          'Источник результатов торгов не включён: задайте FEDRESURS_ENABLED=true и FEDRESURS_KEY.\n' +
+            'Пока ключа нет, базу аналогов можно завести командой import-sales из CSV-выгрузки.',
+        );
+        return 1;
+      }
+
+      // Результаты публикуются с задержкой в месяцы, поэтому окно по умолчанию
+      // на порядок шире, чем у сбора объявлений.
+      const days = Number(flags.days ?? 180);
+      const stats = await harvestSales(
+        context,
+        new FedresursSource({
+          baseUrl: config.fedresurs.baseUrl,
+          key: config.fedresurs.key,
+          searchPath: config.fedresurs.searchPath,
+          authHeader: config.fedresurs.authHeader,
+        }),
+        {
+          from: new Date(now.getTime() - days * 24 * 60 * 60 * 1000),
+          to: now,
+          limit: flags.limit === undefined ? undefined : Number(flags.limit),
+        },
+      );
+      console.log(`Результаты торгов: ${describeImportStats(stats)}`);
+      return 0;
+    }
+
+    case 'import-sales': {
+      const file = typeof flags.file === 'string' ? flags.file : argv[1];
+      if (!file || file.startsWith('--')) {
+        console.error('Укажите путь к CSV: radar import-sales sales.csv');
+        return 2;
+      }
+
+      let content: string;
+      try {
+        content = await readFile(file, 'utf8');
+      } catch (error) {
+        console.error(`Не удалось прочитать ${file}: ${error instanceof Error ? error.message : error}`);
+        return 1;
+      }
+
+      const sales = salesFromCsv(content, { sourcePrefix: basename(file, '.csv') });
+      const stats = importSales(context, sales);
+      console.log(`Импорт из ${file}: ${describeImportStats(stats)}`);
+      return stats.accepted > 0 ? 0 : 1;
     }
 
     case 'score': {
@@ -207,6 +265,21 @@ function printStats(context: PipelineDeps): void {
   const comparables = new ComparablesRepo(context.db);
   console.log(`Лотов в базе: ${context.lots.count()}`);
   console.log(`Сопоставимых продаж: ${comparables.count()}`);
+
+  const byKind = comparables.countByKind();
+  if (byKind.length > 0) {
+    const minimum = context.config.estimate.minComparables;
+    console.log('\nНаполненность выборки по видам имущества:');
+    for (const row of byKind) {
+      const ready = row.total >= minimum ? 'оценка работает' : `нужно ещё ${minimum - row.total}`;
+      console.log(`  ${row.assetKind.padEnd(12)} ${String(row.total).padStart(5)} · ${ready}`);
+    }
+  } else {
+    console.log(
+      '\nВыборка пуста — оценка не строится, и скоринг ограничивает лоты 45 баллами.\n' +
+        'Наполните её командой harvest или import-sales.',
+    );
+  }
 
   const runs = context.db
     .prepare('SELECT source, started_at, fetched, inserted, updated, error FROM runs ORDER BY id DESC LIMIT 5')
