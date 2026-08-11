@@ -144,6 +144,56 @@ test('lotKey: без идентификаторов ключ строится п
   assert.equal(key, 'inn:7701234567:1235:оборудование-цеха');
 });
 
+test('lotKey: без единого идентификатора разные лоты не схлопываются', () => {
+  // ГИС Торги не отдаёт ИНН должника, а VIN есть не в каждом описании.
+  // Заголовок с ценой ключом быть не может: два разных автомобиля слились бы в один.
+  const a = lotKey({
+    title: 'Автомобиль легковой',
+    startPrice: 500_000,
+    sourceSystem: 'torgi_gov',
+    sourceId: 'card-1',
+  });
+  const b = lotKey({
+    title: 'Автомобиль легковой',
+    startPrice: 500_000,
+    sourceSystem: 'torgi_gov',
+    sourceId: 'card-2',
+  });
+
+  assert.notEqual(a, b, 'дубль в воронке дешевле потерянного лота');
+  assert.equal(a, 'src:torgi_gov:card-1');
+});
+
+test('lotKey: повторная выдача того же лота источником даёт тот же ключ', () => {
+  const first = lotKey({ title: 'Автомобиль', sourceSystem: 'torgi_gov', sourceId: 'card-1' });
+  const again = lotKey({
+    title: 'Автомобиль легковой, уточнённое описание',
+    startPrice: 480_000,
+    sourceSystem: 'torgi_gov',
+    sourceId: 'card-1',
+  });
+
+  assert.equal(first, again, 'запасной ключ держится на идентификаторе источника');
+});
+
+test('lotKey: устойчивый идентификатор важнее источника', () => {
+  // Кадастровый номер склеивает лот между источниками — ради этого всё и затевалось.
+  const fromFedresurs = lotKey({
+    title: 'Квартира',
+    assets: [{ cadastralNumber: '77:06:0004009:1234' }],
+    sourceSystem: 'fedresurs',
+    sourceId: 'msg-1',
+  });
+  const fromTorgi = lotKey({
+    title: 'Квартира, 54 кв.м',
+    assets: [{ cadastralNumber: '77:06:0004009:1234' }],
+    sourceSystem: 'torgi_gov',
+    sourceId: 'card-9',
+  });
+
+  assert.equal(fromFedresurs, fromTorgi);
+});
+
 test('lotKey: расхождение в копейках не порождает дубль', () => {
   const a = lotKey({ title: 'Станок', debtorInn: '7701234567', startPrice: 500_000 });
   const b = lotKey({ title: 'Станок', debtorInn: '7701234567', startPrice: 500_000.4 });

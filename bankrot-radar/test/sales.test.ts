@@ -145,7 +145,8 @@ test('salesFromCsv: русская выгрузка разбирается це�
   assert.equal(sales[0]!.areaSqm, 54);
   assert.equal(sales[0]!.startPrice, 10_000_000);
   assert.equal(sales[0]!.soldPrice, 8_100_000);
-  assert.equal(sales[0]!.soldAt, '2026-05-15T00:00:00.000Z');
+  // Дата без времени — начало суток по Москве.
+  assert.equal(sales[0]!.soldAt, '2026-05-14T21:00:00.000Z');
   assert.equal(sales[0]!.assetKind, 'real_estate', 'вид определяется по наименованию');
   assert.equal(sales[1]!.assetKind, 'vehicle');
   assert.equal(sales[1]!.areaSqm, undefined);
@@ -194,7 +195,7 @@ test('fromFedresursResult: результат торгов разбираетс�
   assert.equal(sales[0]!.soldPrice, 8_100_000);
   assert.equal(sales[0]!.startPrice, 10_000_000);
   assert.equal(sales[0]!.areaSqm, 50);
-  assert.equal(sales[0]!.soldAt, '2026-05-25T00:00:00.000Z');
+  assert.equal(sales[0]!.soldAt, '2026-05-24T21:00:00.000Z');
   assert.equal(sales[0]!.lotKey, 'cad:77:06:0004009:1234', 'ключ связывает результат с объявлением');
 });
 

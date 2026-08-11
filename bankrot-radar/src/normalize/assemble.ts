@@ -107,6 +107,8 @@ export function assembleLot(input: AssembleInput): Lot {
       assets: lot.assets,
       debtorInn: debtor.inn,
       startPrice: lot.startPrice,
+      sourceSystem: lot.sourceSystem,
+      sourceId: lot.sourceId,
     }),
   };
 }

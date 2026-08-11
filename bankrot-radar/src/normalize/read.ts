@@ -58,6 +58,20 @@ export function readRecord(source: unknown, ...keys: string[]): Record<string, u
 }
 
 /**
+ * Часовой пояс дат без указания зоны.
+ *
+ * Российский формат «20.09.2026 10:00» в извещениях не несёт зоны, и трактовать
+ * его как UTC нельзя: сроки в торгах по банкротству публикуются по московскому
+ * времени. Ошибка в три часа здесь смещает дедлайн подачи в опасную сторону —
+ * сервис показывал бы, что времени ещё есть, когда приём заявок уже закрыт.
+ *
+ * Москва — UTC+3 без переходов на летнее время с 2014 года, поэтому достаточно
+ * фиксированного сдвига. Если обнаружится площадка, публикующая сроки в местном
+ * времени, сдвиг передаётся параметром в toIso — плюс один аргумент в её маппере.
+ */
+export const MOSCOW_OFFSET_MINUTES = 180;
+
+/**
  * Дата в ISO-8601. Понимает ISO, миллисекунды эпохи и российский формат
  * «31.12.2026» / «31.12.2026 15:04», который встречается в текстовых полях извещений.
  */
@@ -73,7 +87,10 @@ export function readDate(source: unknown, ...keys: string[]): string | undefined
   return undefined;
 }
 
-export function toIso(value: unknown): string | undefined {
+export function toIso(
+  value: unknown,
+  offsetMinutes: number = MOSCOW_OFFSET_MINUTES,
+): string | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return new Date(value).toISOString();
   }
@@ -83,12 +100,21 @@ export function toIso(value: unknown): string | undefined {
   const ru = /^(\d{2})\.(\d{2})\.(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(text);
   if (ru) {
     const [, day, month, year, hour = '00', minute = '00', second = '00'] = ru;
-    const date = new Date(
-      Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)),
+    // Дата без времени трактуется как начало суток, а не конец: для дедлайна
+    // это осознанно консервативно — лучше поторопить, чем опоздать.
+    const utcMs = Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
     );
+    const date = new Date(utcMs - offsetMinutes * 60_000);
     return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
   }
 
+  // Строки ISO несут зону в себе — сдвигать их нельзя.
   const parsed = Date.parse(text);
   return Number.isNaN(parsed) ? undefined : new Date(parsed).toISOString();
 }

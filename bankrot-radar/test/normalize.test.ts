@@ -43,8 +43,31 @@ test('extractVins: отбрасывает строки с запрещённым
 test('extractArea: понимает разные написания единиц', () => {
   assert.equal(extractArea('общая площадь 54,3 кв.м'), 54.3);
   assert.equal(extractArea('площадь 120 м2'), 120);
-  assert.equal(extractArea('площадь 1 200 кв. м'), 200, 'разрыв в числе читается как 200');
+  assert.equal(extractArea('общей площадью 37.90 кв. м.'), 37.9);
   assert.equal(extractArea('без площади'), undefined);
+});
+
+// Формулировки взяты из реальных извещений. Обе ловушки занижают площадь,
+// а от неё напрямую зависит оценка недвижимости по цене за метр.
+test('extractArea: пробел-разделитель разрядов не обрезает число', () => {
+  assert.equal(extractArea('Земельный участок площадью 1 075 кв.м.'), 1075);
+  assert.equal(extractArea('площадь 1 200 кв. м'), 1200);
+  assert.equal(extractArea('площадью 12 500,5 кв.м'), 12_500.5);
+});
+
+test('extractArea: семизначная площадь не теряет старшую цифру', () => {
+  assert.equal(
+    extractArea('доля в земельном участке площадью 1369000 кв.м'),
+    1_369_000,
+    'ограничение длины числа приводило к захвату последних шести цифр',
+  );
+});
+
+test('extractArea: номер дома не принимается за площадь', () => {
+  assert.equal(
+    extractArea('Московская обл., р-н Луховицы, ул. Жуковского, д. 28, кв. 18, площадь 30,4 кв.м'),
+    30.4,
+  );
 });
 
 test('extractInn: только рядом с меткой', () => {
@@ -106,11 +129,21 @@ test('extractReductionFormula: без формулы возвращает undefi
   assert.equal(extractReductionFormula('Открытый аукцион на повышение'), undefined);
 });
 
-test('toIso: российский формат даты', () => {
-  assert.equal(toIso('31.12.2026'), '2026-12-31T00:00:00.000Z');
-  assert.equal(toIso('31.12.2026 15:04'), '2026-12-31T15:04:00.000Z');
-  assert.equal(toIso('2026-12-31T00:00:00Z'), '2026-12-31T00:00:00.000Z');
+test('toIso: российский формат читается как московское время', () => {
+  // Сроки в извещениях публикуются по Москве. Разбор их как UTC смещал бы дедлайн
+  // на три часа вперёд — сервис показывал бы запас там, где приём заявок уже закрыт.
+  assert.equal(toIso('31.12.2026 15:04'), '2026-12-31T12:04:00.000Z');
+  assert.equal(toIso('31.12.2026'), '2026-12-30T21:00:00.000Z');
   assert.equal(toIso('чепуха'), undefined);
+});
+
+test('toIso: строки с явной зоной не сдвигаются', () => {
+  assert.equal(toIso('2026-12-31T00:00:00Z'), '2026-12-31T00:00:00.000Z');
+  assert.equal(toIso('2026-12-31T10:00:00+03:00'), '2026-12-31T07:00:00.000Z');
+});
+
+test('toIso: сдвиг переопределяется для площадок с местным временем', () => {
+  assert.equal(toIso('31.12.2026 15:04', 420), '2026-12-31T08:04:00.000Z');
 });
 
 test('assembleLot: публичное предложение разворачивается в график цены', () => {
@@ -251,7 +284,8 @@ test('fromTorgiGov: карточка лота нормализуется', () =>
   assert.equal(lot.sourceSystem, 'torgi_gov');
   assert.equal(lot.regionCode, 50);
   assert.equal(lot.startPrice, 1_800_000);
-  assert.equal(lot.applicationEnd, '2026-09-20T10:00:00.000Z');
+  // «20.09.2026 10:00» в извещении — московское время, то есть 07:00 UTC.
+  assert.equal(lot.applicationEnd, '2026-09-20T07:00:00.000Z');
   assert.equal(lot.sourceUrl, 'https://torgi.gov.ru/new/public/lots/lot/card-42');
   assert.equal(lot.assets[0]!.kind, 'land');
 });

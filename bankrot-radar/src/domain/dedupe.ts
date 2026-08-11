@@ -15,6 +15,9 @@ export interface DedupeInput {
   assets?: { cadastralNumber?: string; vin?: string }[];
   debtorInn?: string;
   startPrice?: number;
+  /** Нужны для запасного ключа, когда никаких устойчивых идентификаторов нет. */
+  sourceSystem?: string;
+  sourceId?: string;
 }
 
 /** Схлопывает регистр, ё/е и любые не-буквенно-цифровые последовательности. */
@@ -48,6 +51,18 @@ export function lotKey(input: DedupeInput): string {
   const slug = slugifyTitle(input.title);
   if (input.debtorInn) return `inn:${input.debtorInn}:${priceBucket(input.startPrice)}:${slug}`;
 
+  // Ни кадастрового номера, ни VIN, ни ИНН должника: заголовок с ценой ключом быть
+  // не может. Два разных автомобиля «Автомобиль легковой» за 500 000 от разных
+  // должников дали бы один ключ, слились бы в mergeLots, и один лот бесследно
+  // исчез бы из воронки вместе со своей историей цены.
+  //
+  // Здесь сознательно теряется склейка между источниками — для лотов без единого
+  // устойчивого идентификатора она всё равно была догадкой. Дубль в воронке стоит
+  // нескольких секунд внимания, ошибочное слияние — потерянного лота.
+  if (input.sourceSystem && input.sourceId) {
+    return `src:${input.sourceSystem}:${input.sourceId}`;
+  }
+
   return `t:${priceBucket(input.startPrice)}:${slug}`;
 }
 
@@ -57,6 +72,8 @@ export function lotKeyOf(lot: Omit<Lot, 'id'>): string {
     assets: lot.assets,
     debtorInn: lot.debtor.inn,
     startPrice: lot.startPrice,
+    sourceSystem: lot.sourceSystem,
+    sourceId: lot.sourceId,
   });
 }
 
