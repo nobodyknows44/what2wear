@@ -122,6 +122,21 @@ CREATE TABLE IF NOT EXISTS alerts (
   PRIMARY KEY (lot_id, channel)
 );
 
+-- Сделки принадлежат пользователю и переживают исчезновение лота из выдачи,
+-- поэтому внешнего ключа на lots здесь намеренно нет: лот может пропасть
+-- из источника, а обязательства по нему — остаться.
+CREATE TABLE IF NOT EXISTS deals (
+  lot_id     TEXT PRIMARY KEY,
+  status     TEXT NOT NULL,
+  buyer_type TEXT NOT NULL,
+  max_price  REAL,
+  notes      TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  completed  TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_deals_status ON deals (status);
+
 CREATE TABLE IF NOT EXISTS runs (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   source      TEXT NOT NULL,

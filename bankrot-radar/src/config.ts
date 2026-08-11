@@ -1,6 +1,7 @@
 import type { AssetKind } from './domain/lot.ts';
 import { ASSET_KINDS } from './domain/lot.ts';
 import { parseRegionList } from './domain/regions.ts';
+import { parseHolidays } from './domain/workdays.ts';
 
 export interface Config {
   dbPath: string;
@@ -33,6 +34,18 @@ export interface Config {
   estimate: {
     uplift: number;
     minComparables: number;
+  };
+  deals: {
+    /** Рабочих дней на прохождение банковского платежа до окончания приёма заявок. */
+    depositLeadDays: number;
+    /** Рабочих дней на сбор пакета документов до срока перечисления задатка. */
+    documentsLeadDays: number;
+    /** Рабочих дней запаса на подачу заявки. */
+    applicationLeadDays: number;
+    /** За сколько часов до срока начинать напоминать. */
+    remindHorizonHours: number;
+    /** Праздничные дни: производственный календарь меняется ежегодно и не зашит в код. */
+    holidays: Set<string>;
   };
   enrichment: {
     /** Минимальный балл первого прохода, начиная с которого лот достоин платного запроса. */
@@ -93,6 +106,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     estimate: {
       uplift: number(env.ESTIMATE_UPLIFT, 1),
       minComparables: number(env.ESTIMATE_MIN_COMPARABLES, 5),
+    },
+    deals: {
+      depositLeadDays: number(env.DEAL_DEPOSIT_LEAD_DAYS, 3),
+      documentsLeadDays: number(env.DEAL_DOCUMENTS_LEAD_DAYS, 3),
+      applicationLeadDays: number(env.DEAL_APPLICATION_LEAD_DAYS, 1),
+      remindHorizonHours: number(env.DEAL_REMIND_HORIZON_HOURS, 72),
+      holidays: parseHolidays(env.HOLIDAYS),
     },
     enrichment: {
       minScore: number(env.ENRICH_MIN_SCORE, 55),

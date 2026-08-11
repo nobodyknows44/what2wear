@@ -5,8 +5,13 @@
  * сейчас. Поэтому наверх выносятся цена, дисконт и дедлайн, а не описание лота.
  */
 
+import { documentChecklist, slowItems } from '../deal/checklist.ts';
+import type { Deal } from '../domain/deal.ts';
+import { STATUS_LABELS } from '../domain/deal.ts';
+import type { Lot } from '../domain/lot.ts';
 import { regionName } from '../domain/regions.ts';
 import { nextDrop } from '../domain/priceSchedule.ts';
+import type { Milestone } from '../deal/milestones.ts';
 import type { ScoredLot } from '../storage/lotsRepo.ts';
 
 export function formatAlert(scored: ScoredLot, now: Date): string {
@@ -60,6 +65,68 @@ export function formatAlert(scored: ScoredLot, now: Date): string {
   return lines.join('\n');
 }
 
+/**
+ * Напоминание по вехе сделки.
+ *
+ * В отличие от алерта по лоту, здесь на первом месте не выгода, а действие
+ * и срок: сообщение должно отвечать на вопрос «что мне сделать сегодня»,
+ * а не «стоит ли этим заниматься» — этот вопрос решён при заведении сделки.
+ */
+export function formatDealReminder(
+  lot: Lot,
+  deal: Deal,
+  milestone: Milestone,
+  now: Date,
+): string {
+  const lines: string[] = [];
+
+  const marker = milestone.overdue ? '⚠️ Срок нарушен' : 'Приближается срок';
+  lines.push(`<b>${marker}: ${escapeHtml(milestone.title)}</b>`);
+  lines.push(escapeHtml(truncate(lot.title, 120)));
+  lines.push('');
+
+  const due = milestone.dayGranular
+    ? formatDate(milestone.dueAt)
+    : formatDateTime(milestone.dueAt);
+  lines.push(`Срок: ${due} (${remaining(milestone.dueAt, now)})`);
+  lines.push(`Статус сделки: ${STATUS_LABELS[deal.status]}`);
+
+  if (milestone.code === 'deposit') {
+    // Размер задатка не вычисляется: ошибка здесь означает недопуск,
+    // поэтому при отсутствии суммы в извещении человек обязан посмотреть сам.
+    lines.push(
+      typeof lot.deposit === 'number'
+        ? `Задаток: ${formatRub(lot.deposit)}`
+        : 'Задаток: в извещении не указан — посмотрите сообщение о торгах',
+    );
+    if (lot.applicationEnd) {
+      lines.push(`Приём заявок до ${formatDateTime(lot.applicationEnd)}`);
+    }
+  }
+
+  if (milestone.code === 'documents') {
+    const items = documentChecklist(lot, deal.buyerType);
+    const slow = slowItems(items);
+    lines.push('');
+    lines.push(`Пакет документов, ${items.length} пунктов${slow.length > 0 ? ':' : ''}`);
+    for (const item of slow) {
+      lines.push(`• ${escapeHtml(item.title)} — <i>получать заранее</i>`);
+    }
+    lines.push('Полный список: <code>radar deal show</code>');
+  }
+
+  if (milestone.code === 'auction' && typeof deal.maxPrice === 'number') {
+    lines.push(`Потолок цены: ${formatRub(deal.maxPrice)}`);
+  }
+
+  lines.push('');
+  lines.push(`<i>${escapeHtml(milestone.rationale)}</i>`);
+
+  if (lot.sourceUrl) lines.push(`<a href="${escapeHtml(lot.sourceUrl)}">Открыть карточку</a>`);
+
+  return lines.join('\n');
+}
+
 function procedureLabel(procedure: string): string {
   switch (procedure) {
     case 'public_offer':
@@ -77,6 +144,18 @@ function procedureLabel(procedure: string): string {
 
 export function formatRub(value: number): string {
   return `${Math.round(value).toLocaleString('ru-RU')} ₽`;
+}
+
+/** Дата без времени: для сроков, вычисленных в рабочих днях, время не известно. */
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 function formatDateTime(iso: string): string {

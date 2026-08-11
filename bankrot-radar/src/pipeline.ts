@@ -15,8 +15,10 @@ import type { EnrichmentRunner, EnrichmentStats } from './enrich/enricher.ts';
 import type { Estimator } from './enrich/estimator.ts';
 import type { RawSale, SaleImportStats } from './enrich/sales.ts';
 import { emptyImportStats, resolveSale } from './enrich/sales.ts';
-import { formatAlert } from './notify/format.ts';
 import type { Notifier } from './notify/notifier.ts';
+import { milestonesFor } from './deal/milestones.ts';
+import type { MilestoneOptions } from './deal/milestones.ts';
+import { formatAlert, formatDealReminder } from './notify/format.ts';
 import { applyFacts } from './score/registryFlags.ts';
 import { scoreLot } from './score/score.ts';
 import type { SalesSource, Source } from './sources/types.ts';
@@ -24,6 +26,7 @@ import type { Db } from './storage/db.ts';
 import { sqlValue } from './storage/db.ts';
 import type { AlertsRepo } from './storage/alertsRepo.ts';
 import { ComparablesRepo } from './storage/comparablesRepo.ts';
+import { DealsRepo } from './storage/dealsRepo.ts';
 import { LotFactsRepo } from './storage/enrichmentRepo.ts';
 import type { LotsRepo } from './storage/lotsRepo.ts';
 
@@ -249,6 +252,64 @@ export async function sendAlerts(
   }
 
   return { sent, suppressed };
+}
+
+export interface RemindOptions {
+  /** За сколько часов до срока начинать напоминать. */
+  horizonHours: number;
+  milestones: MilestoneOptions;
+}
+
+export interface RemindStats {
+  deals: number;
+  sent: number;
+  suppressed: number;
+  lotMissing: number;
+}
+
+/**
+ * Напоминания по срокам сделок.
+ *
+ * Дедупликация по вехе и её состоянию: одно напоминание при приближении срока
+ * и одно при его нарушении. Больше двух сообщений про один и тот же задаток —
+ * и человек перестанет читать все напоминания сразу.
+ */
+export async function remindDeals(
+  deps: PipelineDeps,
+  now: Date,
+  options: RemindOptions,
+): Promise<RemindStats> {
+  const deals = new DealsRepo(deps.db);
+  const stats: RemindStats = { deals: 0, sent: 0, suppressed: 0, lotMissing: 0 };
+  const horizonMs = options.horizonHours * 3_600_000;
+
+  for (const deal of deals.active()) {
+    const lot = deps.lots.get(deal.lotId);
+    if (!lot) {
+      stats.lotMissing++;
+      continue;
+    }
+    stats.deals++;
+
+    for (const milestone of milestonesFor(lot, deal, now, options.milestones)) {
+      if (milestone.done) continue;
+
+      const dueIn = Date.parse(milestone.dueAt) - now.getTime();
+      if (!milestone.overdue && dueIn > horizonMs) continue;
+
+      const channel = `deal:${milestone.code}:${milestone.overdue ? 'overdue' : 'due'}`;
+      if (!deps.alerts.shouldSend(deal.lotId, channel, 0, null)) {
+        stats.suppressed++;
+        continue;
+      }
+
+      await deps.notifier.send(formatDealReminder(lot, deal, milestone, now));
+      deps.alerts.record(deal.lotId, channel, 0, null, now);
+      stats.sent++;
+    }
+  }
+
+  return stats;
 }
 
 function startRun(db: Db, source: string, now: Date): number {

@@ -11,6 +11,17 @@ import { basename } from 'node:path';
 
 import { loadConfig } from './config.ts';
 import type { Config } from './config.ts';
+import { documentChecklist } from './deal/checklist.ts';
+import { milestonesFor } from './deal/milestones.ts';
+import type { MilestoneOptions } from './deal/milestones.ts';
+import {
+  BUYER_LABELS,
+  BUYER_TYPES,
+  STATUS_LABELS,
+  allowedTransitions,
+  isBuyerType,
+  isDealStatus,
+} from './domain/deal.ts';
 import { regionName } from './domain/regions.ts';
 import { describeImportStats } from './enrich/sales.ts';
 import { EnrichmentRunner } from './enrich/enricher.ts';
@@ -30,6 +41,7 @@ import {
   harvestSales,
   importSales,
   ingest,
+  remindDeals,
   scoreAll,
   sendAlerts,
 } from './pipeline.ts';
@@ -39,6 +51,7 @@ import { TorgiGovSource } from './sources/torgiGov.ts';
 import type { Source } from './sources/types.ts';
 import { AlertsRepo } from './storage/alertsRepo.ts';
 import { ComparablesRepo } from './storage/comparablesRepo.ts';
+import { DealsRepo } from './storage/dealsRepo.ts';
 import { openDb } from './storage/db.ts';
 import { EnrichmentCacheRepo, LotFactsRepo } from './storage/enrichmentRepo.ts';
 import { LotsRepo } from './storage/lotsRepo.ts';
@@ -52,6 +65,8 @@ const HELP = `bankrot-radar — сбор, оценка и скоринг лот�
   score                           пересчитать оценку и скоринг активных лотов
   enrich [--min N] [--limit N]    обогатить кандидатов данными реестров и пересчитать их балл
   alert                           разослать алерты по лотам выше порога
+  deal <add|move|done|show|list>  воронка сделок: сроки, статусы, пакет документов
+  remind                          напомнить о приближающихся и нарушенных сроках
   run [--days N]                  ingest + score + alert одной командой
   top [--min N] [--limit N]       показать лучшие лоты в терминале
   stats                           состояние базы, наполненность выборки, прогоны
@@ -179,6 +194,22 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
 
+    case 'deal':
+      return runDeal(context, config, argv.slice(1), flags, now);
+
+    case 'remind': {
+      const stats = await remindDeals(context, now, {
+        horizonHours: Number(flags.horizon ?? config.deals.remindHorizonHours),
+        milestones: milestoneOptions(config),
+      });
+      console.log(
+        `Сделок в работе ${stats.deals}, напоминаний отправлено ${stats.sent}, ` +
+          `подавлено ${stats.suppressed}` +
+          (stats.lotMissing > 0 ? `, лот не найден у ${stats.lotMissing}` : ''),
+      );
+      return 0;
+    }
+
     case 'run': {
       const results = await runIngest(context, config, flags, now);
       for (const result of results) {
@@ -222,6 +253,170 @@ async function main(argv: string[]): Promise<number> {
       console.log(HELP);
       return 2;
   }
+}
+
+function milestoneOptions(config: Config): MilestoneOptions {
+  return {
+    depositLeadDays: config.deals.depositLeadDays,
+    documentsLeadDays: config.deals.documentsLeadDays,
+    applicationLeadDays: config.deals.applicationLeadDays,
+    holidays: config.deals.holidays,
+  };
+}
+
+const DEAL_HELP = `radar deal <подкоманда>
+
+  add <lotId> [--buyer individual|entrepreneur|company] [--max N]
+  move <lotId> <статус>
+  done <lotId> <веха>
+  show <lotId>
+  list`;
+
+function runDeal(
+  context: PipelineDeps,
+  config: Config,
+  argv: string[],
+  flags: Record<string, string | boolean>,
+  now: Date,
+): number {
+  const deals = new DealsRepo(context.db);
+  const sub = argv[0];
+  const lotId = argv[1];
+
+  switch (sub) {
+    case 'add': {
+      if (!lotId) return fail('Укажите идентификатор лота: radar deal add <lotId>');
+      if (!context.lots.get(lotId)) return fail(`Лот ${lotId} не найден в базе`);
+
+      const rawBuyer = typeof flags.buyer === 'string' ? flags.buyer : 'individual';
+      if (!isBuyerType(rawBuyer)) {
+        return fail(`Тип покупателя должен быть одним из: ${BUYER_TYPES.join(', ')}`);
+      }
+      const maxPrice = flags.max === undefined ? undefined : Number(flags.max);
+
+      const deal = deals.create(lotId, rawBuyer, now, maxPrice);
+      console.log(`Сделка заведена: ${deal.lotId}, ${BUYER_LABELS[deal.buyerType]}`);
+      printDeal(context, config, deal, now);
+      return 0;
+    }
+
+    case 'move': {
+      const target = argv[2];
+      if (!lotId || !target) return fail('radar deal move <lotId> <статус>');
+      if (!isDealStatus(target)) return fail(`Неизвестный статус: ${target}`);
+
+      try {
+        const deal = deals.move(lotId, target, now);
+        console.log(`Статус: ${STATUS_LABELS[deal.status]}`);
+        printDeal(context, config, deal, now);
+        return 0;
+      } catch (error) {
+        const current = deals.get(lotId);
+        const hint = current
+          ? ` Из «${STATUS_LABELS[current.status]}» возможно: ${allowedTransitions(current.status)
+              .map((s) => STATUS_LABELS[s])
+              .join(', ') || 'ничего, статус конечный'}`
+          : '';
+        return fail(`${error instanceof Error ? error.message : String(error)}.${hint}`);
+      }
+    }
+
+    case 'done': {
+      const milestone = argv[2];
+      if (!lotId || !milestone) return fail('radar deal done <lotId> <веха>');
+      const deal = deals.markDone(lotId, milestone, now);
+      console.log(`Веха «${milestone}» отмечена выполненной`);
+      printDeal(context, config, deal, now);
+      return 0;
+    }
+
+    case 'show': {
+      if (!lotId) return fail('radar deal show <lotId>');
+      const deal = deals.get(lotId);
+      if (!deal) return fail(`Сделка по лоту ${lotId} не заведена`);
+      printDeal(context, config, deal, now, { checklist: true });
+      return 0;
+    }
+
+    case 'list': {
+      const all = deals.all();
+      if (all.length === 0) {
+        console.log('Сделок нет. Заведите первую: radar deal add <lotId>');
+        return 0;
+      }
+      for (const deal of all) {
+        const lot = context.lots.get(deal.lotId);
+        console.log(
+          `${STATUS_LABELS[deal.status].padEnd(26)} ${lot ? lot.title.slice(0, 60) : deal.lotId}`,
+        );
+      }
+      return 0;
+    }
+
+    default:
+      console.log(DEAL_HELP);
+      return sub === undefined ? 0 : 2;
+  }
+}
+
+function printDeal(
+  context: PipelineDeps,
+  config: Config,
+  deal: ReturnType<DealsRepo['get']> & object,
+  now: Date,
+  options: { checklist?: boolean } = {},
+): void {
+  const lot = context.lots.get(deal.lotId);
+  if (!lot) {
+    console.log('Лот больше не в базе — вехи и чек-лист рассчитать не из чего.');
+    return;
+  }
+
+  console.log(`\n${lot.title}`);
+  if (typeof deal.maxPrice === 'number') {
+    console.log(`Потолок цены: ${Math.round(deal.maxPrice).toLocaleString('ru-RU')} ₽`);
+  }
+
+  const milestones = milestonesFor(lot, deal, now, milestoneOptions(config));
+  if (milestones.length === 0) {
+    console.log('Сроков в извещении нет — вехи не рассчитаны.');
+  } else {
+    console.log('\nВехи:');
+    for (const milestone of milestones) {
+      const mark = milestone.done ? '✓' : milestone.overdue ? '!' : ' ';
+      const due = milestone.dayGranular
+        ? new Date(milestone.dueAt).toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })
+        : new Date(milestone.dueAt).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/Moscow',
+          });
+      console.log(`  ${mark} ${milestone.title.padEnd(28)} ${due.padEnd(17)} ${milestone.rationale}`);
+    }
+  }
+
+  if (options.checklist) {
+    console.log(`\nПакет документов (${BUYER_LABELS[deal.buyerType]}):`);
+    for (const item of documentChecklist(lot, deal.buyerType)) {
+      console.log(
+        `  ${item.slow ? '⏳' : '·'} ${item.title}${item.note ? `\n      ${item.note}` : ''}`,
+      );
+    }
+  }
+  console.log('');
+}
+
+function fail(message: string): number {
+  console.error(message);
+  return 2;
 }
 
 /**
