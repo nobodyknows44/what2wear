@@ -22,6 +22,7 @@ import {
   isBuyerType,
   isDealStatus,
 } from './domain/deal.ts';
+import { bar, coverageReport, needsAttention } from './diagnostics/coverage.ts';
 import { regionName } from './domain/regions.ts';
 import { describeImportStats } from './enrich/sales.ts';
 import { EnrichmentRunner } from './enrich/enricher.ts';
@@ -70,6 +71,7 @@ const HELP = `bankrot-radar — сбор, оценка и скоринг лот�
   run [--days N]                  ingest + score + alert одной командой
   top [--min N] [--limit N]       показать лучшие лоты в терминале
   stats                           состояние базы, наполненность выборки, прогоны
+  doctor [--threshold 0.8]        полнота извлечения данных и примеры того, что не разобралось
   seed-demo                       залить демо-данные и прогнать конвейер офлайн
 
 Конфигурация читается из окружения, см. .env.example.
@@ -231,6 +233,54 @@ async function main(argv: string[]): Promise<number> {
 
     case 'stats': {
       printStats(context);
+      return 0;
+    }
+
+    case 'doctor': {
+      const lots = context.lots.list();
+      if (lots.length === 0) {
+        console.log('В базе нет лотов. Запустите ingest или seed-demo.');
+        return 0;
+      }
+
+      const report = coverageReport(lots, { sampleSize: Number(flags.samples ?? 3) });
+      console.log(`Полнота извлечения по ${report.totalLots} лотам\n`);
+
+      for (const metric of report.metrics) {
+        const percent = metric.share === null ? ' н/д' : `${Math.round(metric.share * 100)}%`.padStart(4);
+        console.log(
+          `${bar(metric.share)} ${percent}  ${metric.label} (${metric.covered}/${metric.applicable})`,
+        );
+      }
+
+      const threshold = Number(flags.threshold ?? 0.8);
+      const minApplicable = Number(flags['min-applicable'] ?? 10);
+      const problems = needsAttention(report, threshold, minApplicable);
+
+      if (problems.length === 0) {
+        // Молчание бывает двух видов, и их нельзя путать: «всё хорошо»
+        // и «выборка слишком мала, чтобы судить».
+        const belowOnSmallSample = needsAttention(report, threshold, 1).length;
+        console.log(
+          belowOnSmallSample > 0
+            ? `\nМетрик ниже порога: ${belowOnSmallSample}, но применимых лотов меньше ${minApplicable} — ` +
+                'на такой выборке доля ещё шум.\nПоказать всё равно: --min-applicable 1'
+            : '\nМетрик ниже порога нет.',
+        );
+        return 0;
+      }
+
+      console.log('\nТребуют внимания:\n');
+      for (const metric of problems) {
+        console.log(`${metric.label} — ${Math.round(metric.share! * 100)}%`);
+        console.log(`  ${metric.impact}`);
+        for (const sample of metric.samples) console.log(`  · ${sample.slice(0, 100)}`);
+        console.log('');
+      }
+      console.log(
+        'Прочитайте примеры глазами: чаще всего не хватает одной формулировки в правиле.\n' +
+          'Порядок работы — правило в src/normalize/text.ts, тест на настоящем тексте, повторный doctor.',
+      );
       return 0;
     }
 
