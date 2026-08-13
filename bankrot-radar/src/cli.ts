@@ -22,6 +22,7 @@ import {
   isBuyerType,
   isDealStatus,
 } from './domain/deal.ts';
+import { runBacktest } from './diagnostics/backtest.ts';
 import { bar, coverageReport, needsAttention } from './diagnostics/coverage.ts';
 import { regionName } from './domain/regions.ts';
 import { describeImportStats } from './enrich/sales.ts';
@@ -72,6 +73,7 @@ const HELP = `bankrot-radar — сбор, оценка и скоринг лот�
   top [--min N] [--limit N]       показать лучшие лоты в терминале
   stats                           состояние базы, наполненность выборки, прогоны
   doctor [--threshold 0.8]        полнота извлечения данных и примеры того, что не разобралось
+  backtest                        проверка оценки на собственной истории продаж
   seed-demo                       залить демо-данные и прогнать конвейер офлайн
 
 Конфигурация читается из окружения, см. .env.example.
@@ -233,6 +235,69 @@ async function main(argv: string[]): Promise<number> {
 
     case 'stats': {
       printStats(context);
+      return 0;
+    }
+
+    case 'backtest': {
+      const comparables = new ComparablesRepo(context.db);
+      const sales = comparables.list();
+      if (sales.length === 0) {
+        console.log('История продаж пуста. Наполните её: harvest или import-sales.');
+        return 0;
+      }
+
+      const report = await runBacktest(sales, comparables, {
+        minComparables: config.estimate.minComparables,
+        minEvaluated: Number(flags['min-evaluated'] ?? 30),
+      });
+
+      console.log(
+        `Проверено ${report.evaluated} из ${report.total} продаж ` +
+          `(пропущено ${report.skipped}: на дату сделки ещё не набралось аналогов)\n`,
+      );
+
+      if (report.evaluated === 0) {
+        console.log(
+          'Оценить не удалось ни одной продажи. Это не поломка: выборка обязана быть\n' +
+            'достаточной на момент КАЖДОЙ сделки, а не в целом — иначе проверка смотрела бы\n' +
+            'в будущее. Наполните историю глубже по времени.',
+        );
+        return 0;
+      }
+
+      console.log(`Медианная ошибка оценки: ${percent(report.medianAbsError)}`);
+      console.log(
+        `Смещение: ${percent(report.medianBias)} ` +
+          `(${(report.medianBias ?? 0) < 0 ? 'систематически занижаем' : 'систематически завышаем'})`,
+      );
+
+      if (report.byKind.length > 1) {
+        console.log('\nПо видам имущества:');
+        for (const kind of report.byKind) {
+          console.log(
+            `  ${kind.assetKind.padEnd(12)} n=${String(kind.evaluated).padStart(4)}  ` +
+              `ошибка ${percent(kind.medianAbsError)}  смещение ${percent(kind.medianBias)}`,
+          );
+        }
+      }
+
+      if (report.suggestedUplift !== null) {
+        console.log(
+          `\nОбоснованный множитель: ESTIMATE_UPLIFT=${report.suggestedUplift}\n` +
+            'Это первое число за всю историю сервиса, у которого есть основание, — до сих пор\n' +
+            'множитель равнялся единице именно потому, что подтверждения не было.',
+        );
+      } else {
+        console.log(
+          '\nМножитель не предлагается: выборки мало либо смещение в пределах шума.\n' +
+            'ESTIMATE_UPLIFT остаётся равным 1 — это осознанная позиция, а не недоделка.',
+        );
+      }
+
+      console.log(
+        '\nЧего проверка НЕ подтверждает: риск-флаги и веса скоринга. В истории продаж\n' +
+          'нет текста извещения, поэтому проверяется только оценка стоимости.',
+      );
       return 0;
     }
 
@@ -462,6 +527,10 @@ function printDeal(
     }
   }
   console.log('');
+}
+
+function percent(value: number | null): string {
+  return value === null ? 'н/д' : `${(value * 100).toFixed(1)}%`;
 }
 
 function fail(message: string): number {

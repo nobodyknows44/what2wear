@@ -68,6 +68,14 @@ export class ComparablesRepo implements ComparablesSource {
       conditions.push('area_sqm <= ?');
       params.push(query.maxArea);
     }
+    if (query.excludeId !== undefined) {
+      conditions.push('id <> ?');
+      params.push(query.excludeId);
+    }
+    if (query.soldBefore !== undefined) {
+      conditions.push('sold_at < ?');
+      params.push(query.soldBefore);
+    }
 
     const rows = this.#db
       .prepare(
@@ -88,6 +96,30 @@ export class ComparablesRepo implements ComparablesSource {
         startPrice: Number(row.start_price),
         soldPrice: Number(row.sold_price),
         soldAt: String(row.sold_at),
+      };
+    });
+  }
+
+  /** Вся выборка целиком — нужна для проверки оценки на истории. */
+  list(limit = 5000): SoldLotInput[] {
+    const rows = this.#db
+      .prepare(
+        `SELECT id, asset_kind, region_code, area_sqm, start_price, sold_price, sold_at, title
+         FROM sold_lots ORDER BY sold_at LIMIT ?`,
+      )
+      .all(limit);
+
+    return rows.map((raw) => {
+      const row = raw as Record<string, unknown>;
+      return {
+        id: String(row.id),
+        assetKind: String(row.asset_kind),
+        regionCode: row.region_code === null ? undefined : Number(row.region_code),
+        areaSqm: row.area_sqm === null ? undefined : Number(row.area_sqm),
+        startPrice: Number(row.start_price),
+        soldPrice: Number(row.sold_price),
+        soldAt: String(row.sold_at),
+        title: row.title === null ? undefined : String(row.title),
       };
     });
   }
