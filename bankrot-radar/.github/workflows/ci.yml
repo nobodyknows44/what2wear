@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Нативное исполнение TypeScript и встроенный node:sqlite —
+          # ниже 22.18 сервис не запустится вовсе.
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Типы
+        run: npx tsc --noEmit
+
+      - name: Тесты
+        run: npm test
+
+      # Дымовой прогон всего конвейера на демо-данных: тесты проверяют модули
+      # по отдельности, а это — что они собираются в работающее целое.
+      # Без ключей и без сети, поэтому годится для CI.
+      - name: Конвейер на демо-данных
+        run: RADAR_DB=./data/ci.db npm run demo

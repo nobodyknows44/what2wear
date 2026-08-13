@@ -166,12 +166,15 @@ async function main(argv: string[]): Promise<number> {
     case 'enrich': {
       const enrichers = buildEnrichers(config);
       if (enrichers.length === 0) {
-        console.error(
-          'Ни один провайдер обогащения не настроен.\n' +
+        // Не ошибка, а состояние настройки — так же, как выключенный источник
+        // в ingest. Возвращать ненулевой код значит заставить регулярный прогон
+        // вечно рапортовать о сбое и приучить не читать его лог.
+        console.warn(
+          'Ни один провайдер обогащения не настроен, фаза пропущена.\n' +
             'Самый быстрый старт без API: проверьте несколько объектов вручную, сложите факты\n' +
             'в JSON и укажите путь в ENRICH_MANUAL_FACTS. См. README, раздел «Обогащение».',
         );
-        return 1;
+        return 0;
       }
 
       const runner = new EnrichmentRunner(enrichers, new EnrichmentCacheRepo(context.db), {

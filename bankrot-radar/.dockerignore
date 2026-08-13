@@ -1,0 +1,11 @@
+node_modules
+data
+test
+docs
+*.db
+*.db-wal
+*.db-journal
+.env
+.env.local
+.git
+.github

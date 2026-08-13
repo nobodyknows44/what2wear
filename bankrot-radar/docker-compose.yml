@@ -1,0 +1,37 @@
+# Развёртывание одной командой: docker compose run --rm radar seed-demo
+#
+# Расписание вынесено в отдельный сервис, а не в cron внутри контейнера:
+# контейнер с cron внутри прячет логи и переживает падения молча.
+# Здесь каждый прогон — обычный запуск с обычным выводом в docker logs.
+
+services:
+  radar:
+    build: .
+    env_file: .env
+    environment:
+      RADAR_DB: /data/radar.db
+    volumes:
+      - radar-data:/data
+    # Разовые команды: docker compose run --rm radar doctor
+    profiles: ['cli']
+
+  # Периодический прогон. Интервал в секундах, по умолчанию 15 минут.
+  # Пять фаз идут по порядку внутри run-cycle.sh — см. комментарий в скрипте.
+  scheduler:
+    build: .
+    env_file: .env
+    environment:
+      RADAR_DB: /data/radar.db
+    volumes:
+      - radar-data:/data
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        while true; do
+          ./deploy/run-cycle.sh || true
+          sleep "${RADAR_CYCLE_SECONDS:-900}"
+        done
+
+volumes:
+  radar-data:
