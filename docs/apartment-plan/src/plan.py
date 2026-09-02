@@ -2,8 +2,9 @@
 """Apartment plan reconstructed from the hand measurements (IMG_2445).
 X -> east, Y -> south, metres. Origin = inner NW corner of Room 1."""
 
-S  = 92.0              # drawing units per metre
-OX, OY = 230.0, 205.0  # page offset
+S  = 3937.0            # draw.io units per metre (mxConstants.PIXELS_PER_MM*1000)
+                       # -> View > Units > Meters shows true metres
+OX, OY = 1.35 * 3937.0, 2.20 * 3937.0   # page offset (m -> units)
 
 E = 0.30               # exterior wall (drawn)
 I = 0.125              # interior wall (measured: 0,125)
