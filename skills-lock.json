@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "cli-anything-drawio": {
+      "source": "hkuds/cli-anything",
+      "sourceType": "github",
+      "skillPath": "skills/cli-anything-drawio/SKILL.md",
+      "computedHash": "3a872d7868c1a109facff97ecc6ce123f58972954e476450e431c084e7959568"
+    }
+  }
+}
